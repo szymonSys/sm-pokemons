@@ -1,33 +1,79 @@
-import { View, Text, StyleSheet, Button } from "react-native";
+import {
+  View,
+  StyleSheet,
+  Text,
+  TouchableHighlight,
+  GestureResponderEvent,
+  TouchableOpacity,
+} from "react-native";
 import { Image } from "expo-image";
-import { PokemonWithDetails } from "@/apis/pokemons-api";
+import {
+  getPokemonDetailsById,
+  PokemonDetailsResponse,
+} from "@/apis/pokemons-api";
 import { useRouter } from "expo-router";
-// import { Button } from "@react-navigation/elements";
+import { memo, useCallback, useEffect, useState } from "react";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { capitalizeFirstLetter } from "@/utils/string-utils";
 
 type PokemonItemProps = {
-  item: PokemonWithDetails;
+  name: string;
+  onButtonPress?: (
+    item: PokemonDetailsResponse,
+    event: GestureResponderEvent
+  ) => void;
 };
 
-export function PokemonListItem({ item }: PokemonItemProps) {
+export const PokemonListItem = memo(function PokemonListItem({
+  name,
+  onButtonPress,
+}: PokemonItemProps) {
   const router = useRouter();
-  return (
-    <View style={styles.wrapper}>
-      <Image
-        source={{ uri: item.details.sprites.front_default ?? "" }}
-        style={styles.image}
-      />
-      <Button
-        title={item.name}
-        onPress={() =>
-          router.push({
-            pathname: "/[pokemonName]",
-            params: { pokemonName: item.name },
-          })
-        }
-      />
-    </View>
+  const [pokemonItem, setPokemonItem] = useState<PokemonDetailsResponse | null>(
+    null
   );
-}
+  const [loading, setLoading] = useState(false);
+
+  const handleFetchPokemonDetails = useCallback(async () => {
+    setLoading(true);
+    const { data } = await getPokemonDetailsById(name);
+    data && setPokemonItem(data);
+    setLoading(false);
+  }, [name]);
+
+  const handleButtonPress = useCallback(
+    (event: GestureResponderEvent) => {
+      onButtonPress && pokemonItem && onButtonPress(pokemonItem, event);
+    },
+    [onButtonPress, pokemonItem]
+  );
+
+  useEffect(() => {
+    handleFetchPokemonDetails();
+  }, [handleFetchPokemonDetails]);
+
+  if (!pokemonItem || loading) {
+    return (
+      <View style={styles.wrapper}>
+        <View style={styles.image} />
+        <Text style={styles.title}>{capitalizeFirstLetter(name)}</Text>
+      </View>
+    );
+  }
+
+  return (
+    <TouchableOpacity activeOpacity={0.6} onPress={handleButtonPress}>
+      <View style={styles.wrapper}>
+        <Image
+          source={{ uri: pokemonItem.sprites.front_default ?? "" }}
+          style={styles.image}
+        />
+        <Text style={styles.title}>{capitalizeFirstLetter(name)}</Text>
+        {/* <IconSymbol name="arrow.up" size={24} color="#333333" /> */}
+      </View>
+    </TouchableOpacity>
+  );
+});
 
 const styles = StyleSheet.create({
   wrapper: {
@@ -35,7 +81,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-start",
-    padding: 8,
+    padding: 12,
     margin: 8,
     backgroundColor: "#ffffff",
     borderRadius: 8,
@@ -44,7 +90,7 @@ const styles = StyleSheet.create({
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,
   },
@@ -58,11 +104,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "medium",
-    color: "#333333",
-  },
-  button: {
-    padding: 8,
-    backgroundColor: "#007bff",
-    borderRadius: 4,
+    color: "#007bff",
+    marginLeft: 8,
   },
 });
