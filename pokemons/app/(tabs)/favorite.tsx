@@ -1,16 +1,19 @@
+import { useNavigationEvent } from "@/hooks/use-navigation-event";
 import { useStore, Keys } from "@/hooks/use-storage";
-import { Redirect, useNavigation } from "expo-router";
+import { Redirect } from "expo-router";
 import { Button, ScrollView, StyleSheet, Text } from "react-native";
 
 export default function FavoriteView() {
-  const navigation = useNavigation();
-
   const {
     remove: removeFavorite,
     item: favoritePokemon,
     exists: favoriteExists,
     initialized: favoriteInitialized,
+    get: getFavorite,
   } = useStore<string>(Keys.FavoritePokemon);
+
+  useNavigationEvent("focus", getFavorite);
+
   if (!favoriteInitialized) {
     return <Redirect href="/" />;
   }
