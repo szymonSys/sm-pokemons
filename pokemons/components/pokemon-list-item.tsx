@@ -2,7 +2,6 @@ import {
   View,
   StyleSheet,
   Text,
-  TouchableHighlight,
   GestureResponderEvent,
   TouchableOpacity,
 } from "react-native";
@@ -13,7 +12,6 @@ import {
 } from "@/apis/pokemons-api";
 import { useRouter } from "expo-router";
 import { memo, useCallback, useEffect, useState } from "react";
-import { IconSymbol } from "@/components/ui/icon-symbol";
 import { capitalizeFirstLetter } from "@/utils/string-utils";
 
 type PokemonItemProps = {
@@ -64,12 +62,13 @@ export const PokemonListItem = memo(function PokemonListItem({
   return (
     <TouchableOpacity activeOpacity={0.6} onPress={handleButtonPress}>
       <View style={styles.wrapper}>
-        <Image
-          source={{ uri: pokemonItem.sprites.front_default ?? "" }}
-          style={styles.image}
-        />
+        <View style={styles.imageWrapper}>
+          <Image
+            source={{ uri: pokemonItem.sprites.front_default ?? "" }}
+            style={styles.image}
+          />
+        </View>
         <Text style={styles.title}>{capitalizeFirstLetter(name)}</Text>
-        {/* <IconSymbol name="arrow.up" size={24} color="#333333" /> */}
       </View>
     </TouchableOpacity>
   );
@@ -94,12 +93,14 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  image: {
-    height: 160,
-    width: 160,
+  imageWrapper: {
     backgroundColor: "#c1f3ffff",
     borderRadius: "100%",
     marginRight: 8,
+  },
+  image: {
+    height: 160,
+    width: 160,
   },
   title: {
     fontSize: 28,

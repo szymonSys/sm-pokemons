@@ -25,6 +25,7 @@ export default function RootLayout() {
           value={colorScheme === "dark" ? DarkTheme : DefaultTheme}
         >
           <Stack screenOptions={{ headerBackButtonDisplayMode: "minimal" }}>
+            {/* <Stack.Screen name="index" options={{ headerShown: false }} /> */}
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen
               name="modal"
