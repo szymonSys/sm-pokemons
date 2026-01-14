@@ -3,8 +3,5 @@ const workletsPluginOptions = {};
 
 module.exports = {
   presets: ["babel-preset-expo"],
-  plugins: [
-    ["react-native-worklets/plugin", workletsPluginOptions],
-    ["react-native-worklets-core/plugin"],
-  ],
+  plugins: [["react-native-worklets-core/plugin"]],
 };

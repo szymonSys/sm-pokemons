@@ -37,7 +37,9 @@
           "android": {
             "minSdkVersion": 34
           },
-          "ios": {}
+          "ios": {
+            "deploymentTarget": "26.0"
+          }
         }
       ],
       "expo-router",
