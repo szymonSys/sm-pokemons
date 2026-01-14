@@ -31,6 +31,15 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 34
+          },
+          "ios": {}
+        }
+      ],
       "expo-router",
       [
         "expo-splash-screen",
@@ -52,7 +61,8 @@
           "enableMicrophonePermission": true,
           "microphonePermissionText": "$(PRODUCT_NAME) needs access to your Microphone."
         }
-      ]
+      ],
+      "expo-build-properties"
     ],
     "experiments": {
       "typedRoutes": true,
