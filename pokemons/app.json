@@ -35,9 +35,11 @@
         "expo-build-properties",
         {
           "android": {
-            "minSdkVersion": 34
+            "minSdkVersion": 26
           },
-          "ios": {}
+          "ios": {
+            "deploymentTarget": "15.5"
+          }
         }
       ],
       "expo-router",
