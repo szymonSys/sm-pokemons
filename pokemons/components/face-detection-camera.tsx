@@ -1,11 +1,14 @@
 import { useNavigationEvent } from "@/hooks/use-navigation-event";
-import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
+import { forwardRef, useCallback, useRef, useState } from "react";
 import {
   View,
   StyleSheet,
   TouchableOpacity,
   Text,
   useWindowDimensions,
+  Platform,
+  ViewStyle,
+  ImageProps,
 } from "react-native";
 import {
   useCameraDevice,
@@ -21,10 +24,10 @@ import {
   Camera as DetectorCamera,
 } from "react-native-vision-camera-face-detector";
 import Animated, {
+  useAnimatedProps,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-  useAnimatedReaction,
 } from "react-native-reanimated";
 import { throttleFactory } from "@/utils/common-utils";
 
@@ -33,19 +36,22 @@ export type CameraProps = {
   imageUrl?: string;
 };
 
-type FaceProperties = Face["bounds"] &
-  Pick<Face, "pitchAngle" | "yawAngle" | "rollAngle"> & { visible: boolean };
-
 export const FaceDetectionCamera = forwardRef<VisionCamera, CameraProps>(
   function Camera({ isActive, imageUrl }, ref) {
     const [cameraIsActive, setCameraIsActive] = useState(false);
+    const faceAreaX = useSharedValue(0);
+    const faceAreaY = useSharedValue(0);
+    const faceAreaWidth = useSharedValue(0);
+    const faceAreaHeight = useSharedValue(0);
+    const faceRollAngle = useSharedValue(0);
+    const faceYawAngle = useSharedValue(0);
+    const facePitchAngle = useSharedValue(0);
+    const faceOpacity = useSharedValue(0);
+
     const { width, height } = useWindowDimensions();
 
     const visionCameraRef = useRef<VisionCamera>(null);
     const faceDetectionOptions = useRef<FrameFaceDetectionOptions>({
-      performanceMode: "fast",
-      contourMode: "all",
-      landmarkMode: "all",
       windowWidth: width,
       windowHeight: height,
       autoMode: true,
@@ -54,17 +60,6 @@ export const FaceDetectionCamera = forwardRef<VisionCamera, CameraProps>(
     const { hasPermission: hasLocationPermission } = useLocationPermission();
     const { hasPermission, requestPermission } = useCameraPermission();
     const device = useCameraDevice("front");
-
-    const faceArea = useSharedValue<FaceProperties>({
-      x: 0,
-      y: 0,
-      width: 0,
-      height: 0,
-      rollAngle: 0,
-      yawAngle: 0,
-      pitchAngle: 0,
-      visible: false,
-    });
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const logger = useCallback(
@@ -77,46 +72,61 @@ export const FaceDetectionCamera = forwardRef<VisionCamera, CameraProps>(
     useNavigationEvent("focus", () => setCameraIsActive(true));
     useNavigationEvent("blur", () => setCameraIsActive(false));
 
-    const imageStyles = useAnimatedStyle(() => ({
-      width: withSpring(faceArea.value.width),
-      height: withSpring(faceArea.value.width),
+    const imageProps = useAnimatedProps<ImageProps>(() => ({
+      width: faceAreaWidth.value,
+      height: faceAreaHeight.value,
     }));
 
-    const animatedStyles = useAnimatedStyle(() => ({
-      transform: [
-        {
-          translateX: withSpring(faceArea.value.x),
-        },
-        { translateY: withSpring(faceArea.value.y) },
-        { rotate: withSpring(`${Math.round(faceArea.value.rollAngle)}deg`) },
-        { rotateY: withSpring(`${Math.round(faceArea.value.yawAngle)}deg`) },
-        { rotateX: withSpring(`${Math.round(faceArea.value.pitchAngle)}deg`) },
-      ],
-      width: withSpring(faceArea.value.width),
-      height: withSpring(faceArea.value.height),
-      display: faceArea.value.visible ? "flex" : "none",
-    }));
+    const animatedStyles = useAnimatedStyle(() => {
+      const isAndroid = Platform.OS === "android";
+      const styles: ViewStyle = {
+        transform: [
+          {
+            translateX: withSpring(faceAreaX.value),
+          },
+          { translateY: withSpring(faceAreaY.value) },
+          { rotateZ: withSpring(`${Math.round(faceRollAngle.value)}deg`) },
+          {
+            rotateY: isAndroid
+              ? withSpring(`${Math.round(faceYawAngle.value)}deg`)
+              : "0deg",
+          },
+          {
+            rotateX: isAndroid
+              ? withSpring(`${Math.round(facePitchAngle.value)}deg`)
+              : "0deg",
+          },
+        ],
+        width: withSpring(faceAreaWidth.value),
+        height: withSpring(faceAreaHeight.value),
+        opacity: withSpring(faceOpacity.value),
+      };
+
+      return styles;
+    });
 
     function handleFacesDetection(faces: Face[], frame: Frame) {
       const [face] = faces;
       if (face) {
-        const { bounds, yawAngle, rollAngle, pitchAngle } = face;
-        logger(face);
-        faceArea.set({
-          pitchAngle,
+        const {
+          bounds: { height, width, x, y },
           yawAngle,
           rollAngle,
-          visible: true,
-          ...bounds,
-        });
+          pitchAngle,
+        } = face;
+        logger(face);
+        faceAreaHeight.set(height);
+        faceAreaWidth.set(width);
+        faceAreaX.set(x);
+        faceAreaY.set(y);
+        faceRollAngle.set(rollAngle);
+        faceYawAngle.set(yawAngle);
+        facePitchAngle.set(pitchAngle);
+        faceOpacity.set(1);
       } else {
-        faceArea.value.visible = false;
-        // for (const prop in faceArea.value) {
-        //   faceArea.value[prop as keyof FaceProperties] = 0;
-        // }
+        faceOpacity.set(0);
       }
     }
-
     if (!hasPermission) {
       return (
         <View style={[StyleSheet.absoluteFill, styles.wrapper]}>
@@ -152,7 +162,10 @@ export const FaceDetectionCamera = forwardRef<VisionCamera, CameraProps>(
           faceDetectionOptions={faceDetectionOptions}
         />
         <Animated.View style={[styles.faceFrame, animatedStyles]}>
-          <Animated.Image source={{ uri: imageUrl }} style={imageStyles} />
+          <Animated.Image
+            source={{ uri: imageUrl }}
+            animatedProps={imageProps}
+          />
         </Animated.View>
       </View>
     );
@@ -187,6 +200,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "red",
     position: "absolute",
-    borderRadius: 300,
+    borderRadius: 1000,
   },
 });
