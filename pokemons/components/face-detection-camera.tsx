@@ -24,6 +24,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  useAnimatedReaction,
 } from "react-native-reanimated";
 import { throttleFactory } from "@/utils/common-utils";
 
@@ -33,14 +34,14 @@ export type CameraProps = {
 };
 
 type FaceProperties = Face["bounds"] &
-  Pick<Face, "pitchAngle" | "yawAngle" | "rollAngle">;
+  Pick<Face, "pitchAngle" | "yawAngle" | "rollAngle"> & { visible: boolean };
 
 export const FaceDetectionCamera = forwardRef<VisionCamera, CameraProps>(
   function Camera({ isActive, imageUrl }, ref) {
+    const [cameraIsActive, setCameraIsActive] = useState(false);
     const { width, height } = useWindowDimensions();
 
-    const [cameraIsActive, setCameraIsActive] = useState(false);
-    const device = useCameraDevice("front");
+    const visionCameraRef = useRef<VisionCamera>(null);
     const faceDetectionOptions = useRef<FrameFaceDetectionOptions>({
       performanceMode: "fast",
       contourMode: "all",
@@ -49,11 +50,10 @@ export const FaceDetectionCamera = forwardRef<VisionCamera, CameraProps>(
       windowHeight: height,
       autoMode: true,
     }).current;
-    const {
-      hasPermission: hasLocationPermission,
-      requestPermission: requestLocationPermission,
-    } = useLocationPermission();
+
+    const { hasPermission: hasLocationPermission } = useLocationPermission();
     const { hasPermission, requestPermission } = useCameraPermission();
+    const device = useCameraDevice("front");
 
     const faceArea = useSharedValue<FaceProperties>({
       x: 0,
@@ -63,21 +63,24 @@ export const FaceDetectionCamera = forwardRef<VisionCamera, CameraProps>(
       rollAngle: 0,
       yawAngle: 0,
       pitchAngle: 0,
+      visible: false,
     });
-
-    const visionCameraRef = useRef<VisionCamera>(null);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     const logger = useCallback(
       throttleFactory((face: Face) => {
-        // console.log(face);
+        console.log("Face bounds: ", face.bounds);
       }, 1000),
       []
     );
 
-    useEffect(() => {
-      console.log({ imageUrl });
-    }, [imageUrl]);
+    useNavigationEvent("focus", () => setCameraIsActive(true));
+    useNavigationEvent("blur", () => setCameraIsActive(false));
+
+    const imageStyles = useAnimatedStyle(() => ({
+      width: withSpring(faceArea.value.width),
+      height: withSpring(faceArea.value.width),
+    }));
 
     const animatedStyles = useAnimatedStyle(() => ({
       transform: [
@@ -91,6 +94,7 @@ export const FaceDetectionCamera = forwardRef<VisionCamera, CameraProps>(
       ],
       width: withSpring(faceArea.value.width),
       height: withSpring(faceArea.value.height),
+      display: faceArea.value.visible ? "flex" : "none",
     }));
 
     function handleFacesDetection(faces: Face[], frame: Frame) {
@@ -102,17 +106,16 @@ export const FaceDetectionCamera = forwardRef<VisionCamera, CameraProps>(
           pitchAngle,
           yawAngle,
           rollAngle,
+          visible: true,
           ...bounds,
         });
       } else {
-        for (const prop in faceArea.value) {
-          faceArea.value[prop as keyof FaceProperties] = 0;
-        }
+        faceArea.value.visible = false;
+        // for (const prop in faceArea.value) {
+        //   faceArea.value[prop as keyof FaceProperties] = 0;
+        // }
       }
     }
-
-    useNavigationEvent("focus", () => setCameraIsActive(true));
-    useNavigationEvent("blur", () => setCameraIsActive(false));
 
     if (!hasPermission) {
       return (
@@ -132,7 +135,7 @@ export const FaceDetectionCamera = forwardRef<VisionCamera, CameraProps>(
     if (device == null) {
       return (
         <View style={[StyleSheet.absoluteFill, styles.wrapper]}>
-          <Text>Doesn&apos;t work</Text>
+          <Text>Camera doesn&apos;t work</Text>
         </View>
       );
     }
@@ -148,17 +151,9 @@ export const FaceDetectionCamera = forwardRef<VisionCamera, CameraProps>(
           faceDetectionCallback={handleFacesDetection}
           faceDetectionOptions={faceDetectionOptions}
         />
-        {imageUrl && (
-          <Animated.View style={[styles.faceFrame, animatedStyles]}>
-            <Animated.Image
-              source={{ uri: imageUrl }}
-              style={{
-                width: faceArea.value.width,
-                height: faceArea.value.width,
-              }}
-            />
-          </Animated.View>
-        )}
+        <Animated.View style={[styles.faceFrame, animatedStyles]}>
+          <Animated.Image source={{ uri: imageUrl }} style={imageStyles} />
+        </Animated.View>
       </View>
     );
   }
