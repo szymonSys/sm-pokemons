@@ -6,6 +6,8 @@ import { FaceDetectionCamera } from "@/components/face-detection-camera";
 import { useNavigationEvent } from "@/hooks/use-navigation-event";
 import { Keys, useStore } from "@/hooks/use-storage";
 import { useEffect, useState } from "react";
+import { StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {} from "react-native-vision-camera";
 
 export default function CameraView() {
@@ -22,8 +24,10 @@ export default function CameraView() {
   }, [item]);
 
   return (
-    <FaceDetectionCamera
-      imageUrl={pokemon?.sprites.front_default ?? undefined}
-    />
+    <SafeAreaView style={StyleSheet.absoluteFill}>
+      <FaceDetectionCamera
+        imageUrl={pokemon?.sprites.front_default ?? undefined}
+      />
+    </SafeAreaView>
   );
 }
