@@ -12,6 +12,7 @@ import {
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import { PokemonDetails } from "@/components/pokemon-details";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function DetailsView() {
   const [pokemons, setPokemons] = useState<PokemonResourceItem[]>([]);
@@ -62,40 +63,41 @@ export default function DetailsView() {
   );
 
   return (
-    <View style={styles.container}>
-      <BottomSheetModal
-        ref={modalRef}
-        style={styles.bottomSheet}
-        index={1}
-        snapPoints={["33%"]}
-        enablePanDownToClose={true}
-        enableDismissOnClose={true}
-        backdropComponent={BottomSheetBackdrop}
-      >
-        <BottomSheetView>
-          {selectedPokemon ? (
-            <PokemonDetails
-              details={selectedPokemon}
-              onChangeFavorite={() => modalRef.current?.dismiss()}
-            />
-          ) : null}
-        </BottomSheetView>
-      </BottomSheetModal>
-      <FlatList
-        data={pokemons}
-        keyExtractor={(item) => item.url}
-        onEndReachedThreshold={0.3}
-        onEndReached={handleFetchPokemons}
-        renderItem={renderItem}
-      />
-    </View>
+    <SafeAreaView style={StyleSheet.absoluteFill}>
+      <View style={styles.container}>
+        <BottomSheetModal
+          ref={modalRef}
+          style={styles.bottomSheet}
+          index={1}
+          snapPoints={["33%"]}
+          enablePanDownToClose={true}
+          enableDismissOnClose={true}
+          backdropComponent={BottomSheetBackdrop}
+        >
+          <BottomSheetView>
+            {selectedPokemon ? (
+              <PokemonDetails
+                details={selectedPokemon}
+                onChangeFavorite={() => modalRef.current?.dismiss()}
+              />
+            ) : null}
+          </BottomSheetView>
+        </BottomSheetModal>
+        <FlatList
+          data={pokemons}
+          keyExtractor={(item) => item.url}
+          onEndReachedThreshold={0.3}
+          onEndReached={handleFetchPokemons}
+          renderItem={renderItem}
+        />
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 42,
   },
   button: {
     padding: 10,
