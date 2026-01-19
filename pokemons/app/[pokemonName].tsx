@@ -1,27 +1,10 @@
 import { useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
-import {
-  getPokemonDetailsById,
-  PokemonDetailsResponse,
-} from "@/apis/pokemons-api";
 import { PokemonDetails } from "@/components/pokemon-details";
+import { usePokemon } from "@/hooks/pokemons/use-pokemon";
 
 export default function DetailsView() {
   const { pokemonName } = useLocalSearchParams<{ pokemonName: string }>();
-  const [pokemonDetails, setPokemonDetails] =
-    useState<PokemonDetailsResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const { pokemon } = usePokemon({ initialIdOrName: pokemonName });
 
-  const handleFetchPokemonDetails = useCallback(async () => {
-    setIsLoading(true);
-    const result = await getPokemonDetailsById(pokemonName);
-    setPokemonDetails(result.data || null);
-    setIsLoading(false);
-  }, [pokemonName]);
-
-  useEffect(() => {
-    handleFetchPokemonDetails();
-  }, [handleFetchPokemonDetails]);
-
-  return pokemonDetails ? <PokemonDetails details={pokemonDetails} /> : null;
+  return pokemon ? <PokemonDetails details={pokemon} /> : null;
 }

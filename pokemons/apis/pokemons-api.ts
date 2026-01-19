@@ -100,7 +100,7 @@ export type RequestOptions = {
 async function makeRequest<T extends AnyObject | AnyObject[]>(
   endpoint: string,
   options: RequestOptions = {}
-): Promise<{ data?: T; error?: string }> {
+): Promise<{ data?: T; error?: string; url?: string }> {
   try {
     const parsedPath = Array.isArray(options.path)
       ? options.path.join("/")
@@ -113,7 +113,8 @@ async function makeRequest<T extends AnyObject | AnyObject[]>(
         url.searchParams.append(key, value.toString());
       });
     }
-    const response = await fetch(url.toString(), {
+    const stringUrl = url.toString();
+    const response = await fetch(stringUrl, {
       method: options.method || "GET",
       headers: {
         "Content-Type": "application/json",
@@ -123,7 +124,7 @@ async function makeRequest<T extends AnyObject | AnyObject[]>(
       throw new Error(`API request failed with status ${response.status}`);
     }
     const data = await response.json();
-    return { data };
+    return { data, url: stringUrl };
   } catch (error) {
     console.error("API request error:", error);
     return { error: (error as Error).message };
