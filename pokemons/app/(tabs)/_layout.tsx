@@ -22,17 +22,25 @@ export default function TabLayout() {
         options={{
           title: "Pokemons",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="pawprint" color={color} />
+            <IconSymbol size={28} name="list" color={color} />
           ),
         }}
       />
-
+      <Tabs.Screen
+        name="swipe"
+        options={{
+          title: "Swipe",
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={28} name="looks" color={color} />
+          ),
+        }}
+      />
       <Tabs.Screen
         name="favorite"
         options={{
           title: "Favorite",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="heart" color={color} />
+            <IconSymbol size={28} name="favorite" color={color} />
           ),
         }}
       />
