@@ -38,6 +38,15 @@ yarn-error.*
 
 app-example
 
-# generated native folders
+# generated ios native folders
 /ios
-/android
+
+# generated android native folders except app/src/main/java
+/android/*
+!/android/app/
+/android/app/*
+!/android/app/src/
+/android/app/src/*
+!/android/app/src/main/
+/android/app/src/main/*
+!/android/app/src/main/java/
