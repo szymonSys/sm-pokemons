@@ -3,8 +3,8 @@ import { useStore, Keys } from "@/hooks/use-storage";
 import { Redirect } from "expo-router";
 import { Button, ScrollView, StyleSheet, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useEffect } from "react";
-import { useBrightness, useBrightnessCallback, useBrightnessPermission } from "@/hooks/use-brightness";
+import { useBrightness, useBrightnessCallback, useBrightnessListener, useBrightnessPermission } from "@/hooks/use-brightness";
+import { Slider } from "@/components/ui/slider";
 
 export default function FavoriteView() {
   const {
@@ -15,19 +15,15 @@ export default function FavoriteView() {
     get: getFavorite,
   } = useStore<string>(Keys.FavoritePokemon);
 
+
   useNavigationEvent("focus", getFavorite);
 
-
-  const [brightness, changeBrightness] = useBrightness()
+  const [_, changeBrightness] = useBrightness()
   const [hasWriteSettingsPermission, requestPermission] = useBrightnessPermission()
-
-  useBrightnessCallback((brightness) => {
-    console.log("brightness changed by the callback: ", brightness);
+const {brightness} = useBrightnessListener()
+ useBrightnessCallback((brightness) => {
+    console.log({brightness})
   })
-
-  useEffect(() => {
-    console.log("brightness state changed: ", brightness);
-  }, [brightness]);
 
   if (!favoriteInitialized) {
     return <Redirect href="/" />;
@@ -36,7 +32,10 @@ export default function FavoriteView() {
     <SafeAreaView style={StyleSheet.absoluteFill}>
       <ScrollView style={styles.wrapper}>
         {!hasWriteSettingsPermission && <Button title="Request Permission" onPress={() => requestPermission()} />}
-{hasWriteSettingsPermission && <Button title="Set Brightness" onPress={() => changeBrightness(0.5)} />}
+  {hasWriteSettingsPermission && brightness && <Slider initialValue={brightness * 100} onChange={(value) => {
+    const normalizedValue = value / 100
+    changeBrightness(normalizedValue)
+  }} />}
         <Text style={styles.text}>
           Favorite Pokemon: {favoritePokemon || "None"}
         </Text>

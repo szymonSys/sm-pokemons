@@ -1,6 +1,4 @@
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
-import { StyleSheet, useWindowDimensions, View } from "react-native";
+import { StyleSheet, useWindowDimensions } from "react-native";
 import Animated, {
   interpolate,
   useAnimatedStyle,

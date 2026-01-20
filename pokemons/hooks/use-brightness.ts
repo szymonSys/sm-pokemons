@@ -81,7 +81,6 @@ export function useBrightnessCallback(
     const subscription = BrightnessModule.addEventListener((event) => {
       callback(event.brightness);
     });
-
     return () => {
       subscription.remove();
     };
