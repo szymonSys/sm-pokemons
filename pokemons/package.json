@@ -10,6 +10,14 @@
     "web": "expo start --web",
     "lint": "expo lint"
   },
+  "codegenConfig":{
+    "name": "BrightnessModuleSpec",
+    "type": "modules",
+    "jsSrcsDir": "specs",
+    "android": {
+      "javaPackageName": "com.brightnessmodule"
+    }
+  },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
     "@gorhom/bottom-sheet": "^5",
