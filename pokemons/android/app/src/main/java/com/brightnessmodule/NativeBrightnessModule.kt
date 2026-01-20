@@ -2,17 +2,24 @@ package com.brightnessmodule
 
 import android.app.Activity
 import android.content.Intent
+import android.database.ContentObserver
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import com.facebook.react.bridge.ActivityEventListener
+import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.BaseActivityEventListener
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
+import com.facebook.react.modules.core.DeviceEventManagerModule
 
 class NativeBrightnessModule(reactContext: ReactApplicationContext) :
     NativeBrightnessModuleSpec(reactContext) {
 
     private var permissionPromise: Promise? = null
+    private var listenerCount = 0
+    private var brightnessObserver: ContentObserver? = null
 
     private val activityEventListener: ActivityEventListener = object : BaseActivityEventListener() {
         override fun onActivityResult(activity: Activity, requestCode: Int, resultCode: Int, data: Intent?) {
@@ -28,6 +35,71 @@ class NativeBrightnessModule(reactContext: ReactApplicationContext) :
 
     init {
         reactContext.addActivityEventListener(activityEventListener)
+    }
+
+    private fun createBrightnessObserver(): ContentObserver {
+        return object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                super.onChange(selfChange)
+                emitBrightnessChange()
+            }
+        }
+    }
+
+    private fun emitBrightnessChange() {
+        try {
+            val brightness = Settings.System.getInt(
+                reactApplicationContext.contentResolver,
+                Settings.System.SCREEN_BRIGHTNESS
+            )
+            val normalizedBrightness = roundToTwoDecimals(brightness.toDouble() / 255.0)
+            
+            val params = Arguments.createMap().apply {
+                putDouble("brightness", normalizedBrightness)
+            }
+            
+            reactApplicationContext
+                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter::class.java)
+                .emit(BRIGHTNESS_CHANGE_EVENT, params)
+        } catch (e: Exception) {
+            
+        }
+    }
+
+    private fun startObserving() {
+        if (brightnessObserver == null) {
+            brightnessObserver = createBrightnessObserver()
+            reactApplicationContext.contentResolver.registerContentObserver(
+                Settings.System.getUriFor(Settings.System.SCREEN_BRIGHTNESS),
+                false,
+                brightnessObserver!!
+            )
+        }
+    }
+
+    private fun stopObserving() {
+        brightnessObserver?.let {
+            reactApplicationContext.contentResolver.unregisterContentObserver(it)
+            brightnessObserver = null
+        }
+    }
+
+    override fun addListener(eventName: String?) {
+        if (eventName == BRIGHTNESS_CHANGE_EVENT) {
+            listenerCount++
+            if (listenerCount == 1) {
+                startObserving()
+                emitBrightnessChange()
+            }
+        }
+    }
+
+    override fun removeListeners(count: Double) {
+        listenerCount -= count.toInt()
+        if (listenerCount <= 0) {
+            listenerCount = 0
+            stopObserving()
+        }
     }
 
     private fun roundToTwoDecimals(value: Double): Double {
@@ -115,8 +187,14 @@ class NativeBrightnessModule(reactContext: ReactApplicationContext) :
         }
     }
 
+    override fun invalidate() {
+        stopObserving()
+        super.invalidate()
+    }
+
     companion object {
         const val NAME = "NativeBrightnessModule"
         private const val WRITE_SETTINGS_REQUEST_CODE = 1001
+        private const val BRIGHTNESS_CHANGE_EVENT = "onBrightnessChange"
     }
 }
