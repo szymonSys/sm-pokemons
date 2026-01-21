@@ -1,4 +1,5 @@
-import { RefObject, forwardRef, useCallback, useLayoutEffect, useRef } from 'react';
+import { DebounceResult, debounceFactory } from '@/utils/common-utils';
+import { RefObject, forwardRef, useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
@@ -6,12 +7,13 @@ import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
-  withTiming,
+  withSpring,
 } from 'react-native-reanimated';
 
 export type SliderProps = {
   initialValue: number;
   onChange: (value: number) => void;
+  changeProgressivelyOnceAtMs?: number;
 };
 
 export interface SliderController {
@@ -20,18 +22,44 @@ export interface SliderController {
 }
 
 export const Slider = forwardRef<SliderController, SliderProps>(function Slider(
-  { onChange, initialValue }: SliderProps,
+  { onChange, initialValue, changeProgressivelyOnceAtMs: changeProgressivelyOnceAtMs }: SliderProps,
   ref,
 ) {
   const sharedValue = useSharedValue(initialValue);
   const sliderRef = useRef<View>(null);
   const thumbMarkRef = useRef<View>(null);
   const trackMarkRef = useRef<View>(null);
+  const cancelProgressivelyChangeValueRef = useRef<DebounceResult<void>[1]>(null);
   const sliderWidth = useSharedValue(0);
   const thumbMarkWidth = useSharedValue(0);
   const trackMarkHeight = useSharedValue(0);
+  const shouldChangeValueProgressively = useSharedValue(changeProgressivelyOnceAtMs !== undefined);
 
-  const calculateValue = useCallback(
+  const progressivelyChangeValue = useMemo(
+    () =>
+      debounceFactory((value: number): void => {
+        onChange(value);
+      }, changeProgressivelyOnceAtMs),
+    [onChange, changeProgressivelyOnceAtMs],
+  );
+
+  const handleProgressivelyChangeValue = useCallback(
+    (value: number): void => {
+      const [_, cancel] = progressivelyChangeValue(value);
+      cancelProgressivelyChangeValueRef.current = cancel;
+    },
+    [progressivelyChangeValue],
+  );
+
+  const handleOnSlideEnd = useCallback(
+    (value: number): void => {
+      cancelProgressivelyChangeValueRef.current?.();
+      onChange(value);
+    },
+    [onChange],
+  );
+
+  const setNormalizedValue = useCallback(
     (x: number): number => {
       'worklet';
       let value = interpolate(
@@ -88,15 +116,18 @@ export const Slider = forwardRef<SliderController, SliderProps>(function Slider(
 
   const panGesture = Gesture.Pan()
     .onUpdate((e) => {
-      calculateValue(e.x);
+      const value = setNormalizedValue(e.x);
+      if (shouldChangeValueProgressively.get()) {
+        runOnJS(handleProgressivelyChangeValue)(value);
+      }
     })
     .onEnd((e) => {
-      runOnJS(onChange)(sharedValue.get());
+      runOnJS(handleOnSlideEnd)(sharedValue.get());
     });
 
   const pressGesture = Gesture.Tap()
     .onStart((e) => {
-      calculateValue(e.x);
+      setNormalizedValue(e.x);
     })
     .onEnd((e) => {
       runOnJS(onChange)(sharedValue.get());
@@ -111,7 +142,7 @@ export const Slider = forwardRef<SliderController, SliderProps>(function Slider(
     return {
       transform: [
         {
-          translateX: withTiming(interpolatedValue, { duration: 10 }),
+          translateX: withSpring(interpolatedValue, { duration: 20 }),
         },
       ],
     };
@@ -124,7 +155,7 @@ export const Slider = forwardRef<SliderController, SliderProps>(function Slider(
       [thumbMarkWidth.get() / 2, sliderWidth.get() - thumbMarkWidth.get() / 2],
     );
     return {
-      width: withTiming(interpolatedValue, { duration: 10 }),
+      width: withSpring(interpolatedValue, { duration: 20 }),
     };
   });
 
@@ -136,14 +167,13 @@ export const Slider = forwardRef<SliderController, SliderProps>(function Slider(
 
   return (
     <View style={styles.container}>
-      <GestureDetector gesture={panGesture}>
+      <GestureDetector gesture={Gesture.Exclusive(panGesture, pressGesture)}>
         <Animated.View ref={sliderRef} style={[styles.slider]}>
           <Animated.View ref={trackMarkRef} style={[styles.trackMark, trackMarkAnimatedStyles]} />
           <Animated.View
             ref={thumbMarkRef}
             style={[styles.sliderThumb, sliderThumbAnimatedStyles]}
           />
-
           <Animated.View style={[styles.sliderTrack, sliderTrackAnimatedStyles]} />
         </Animated.View>
       </GestureDetector>
@@ -161,14 +191,13 @@ const styles = StyleSheet.create({
   },
   sliderTrack: {
     height: '100%',
-    backgroundColor: '#007bff',
+    backgroundColor: '#008bff',
     borderTopLeftRadius: 100,
     borderBottomLeftRadius: 100,
     zIndex: 2,
     position: 'absolute',
     left: 0,
     top: 0,
-    opacity: 0.9,
   },
   slider: {
     position: 'relative',
@@ -194,6 +223,6 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: '#007bff',
     borderRadius: 100,
-    zIndex: 2,
+    zIndex: 3,
   },
 });

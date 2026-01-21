@@ -1,6 +1,7 @@
 import { useNavigationEvent } from '@/hooks/use-navigation-event';
 import { useStore, Keys } from '@/hooks/use-storage';
-import { Redirect } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
+import { Image } from 'expo-image';
 import { Button, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -10,18 +11,22 @@ import {
   useBrightnessPermission,
 } from '@/hooks/use-brightness';
 import { Slider, SliderController } from '@/components/ui/slider';
-import { useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { PokemonDetailsResponse, getPokemonDetailsById } from '@/apis/pokemons-api';
+import { PokemonDetails } from '@/components/pokemon-details';
 
 export default function FavoriteView() {
-  const {
-    remove: removeFavorite,
-    item: favoritePokemon,
-    exists: favoriteExists,
-    initialized: favoriteInitialized,
-    get: getFavorite,
-  } = useStore<string>(Keys.FavoritePokemon);
+  const { item: favoritePokemon, exists: favoriteExists } = useStore<string>(Keys.FavoritePokemon);
 
-  useNavigationEvent('focus', getFavorite);
+  const [pokemon, setPokemon] = useState<PokemonDetailsResponse | null>(null);
+
+  useEffect(() => {
+    if (favoritePokemon) {
+      getPokemonDetailsById(favoritePokemon).then(({ data }) => data && setPokemon(data));
+    }
+  }, [favoritePokemon]);
+
+  const router = useRouter();
 
   const sliderControllerRef = useRef<SliderController>(null);
 
@@ -31,10 +36,17 @@ export default function FavoriteView() {
 
   useBrightnessCallback((brightness) => {
     console.log({ brightness });
-    sliderControllerRef.current?.setValue(brightness * 100);
   });
 
-  if (!favoriteInitialized) {
+  const handleChangeBrightness = useCallback(
+    (value: number) => {
+      const normalizedValue = value / 100;
+      changeBrightness(normalizedValue);
+    },
+    [changeBrightness],
+  );
+
+  if (!favoriteExists) {
     return <Redirect href="/" />;
   }
 
@@ -49,14 +61,21 @@ export default function FavoriteView() {
             <Slider
               ref={sliderControllerRef}
               initialValue={brightness * 100}
-              onChange={(value) => {
-                const normalizedValue = value / 100;
-                changeBrightness(normalizedValue);
+              changeProgressivelyOnceAtMs={100}
+              onChange={handleChangeBrightness}
+            />
+          ) : null}
+        </View>
+        <View>
+          {pokemon ? (
+            <PokemonDetails
+              details={pokemon}
+              onChangeFavorite={() => {
+                router.push('/');
               }}
             />
           ) : null}
         </View>
-        {favoriteExists ? <Button title="Unlike" onPress={removeFavorite} /> : null}
       </ScrollView>
     </SafeAreaView>
   );

@@ -1,17 +1,54 @@
-export function throttleFactory<T extends any[], R>(
-  fn: (...args: T) => R,
-  timeinMs: number = 100
-) {
+export function throttleFactory<T extends any[], R>(fn: (...args: T) => R, timeinMs: number = 100) {
   let lastInvokingTime = Date.now();
-  return (
-    ...args: T
-  ): [result: R, invoked: true] | [result: undefined, invoked: false] => {
+  let lasResult!: R;
+  let invokedAllLeastOnce = false;
+  return (...args: T): [result: R, invoked: boolean] => {
     const now = Date.now();
-    const shouldInvoke = now - lastInvokingTime >= timeinMs;
+    const shouldInvoke = now - lastInvokingTime >= timeinMs || !invokedAllLeastOnce;
     if (shouldInvoke) {
       lastInvokingTime = now;
-      return [fn(...args), true];
+      lasResult = fn(...args);
+      invokedAllLeastOnce = true;
+      return [lasResult, true];
     }
-    return [undefined, false];
+    return [lasResult, false];
   };
+}
+
+export type DebounceResult<R> = [result: Promise<R>, cancel: () => void];
+
+export function debounceFactory<T extends any[], R>(
+  fn: (...args: T) => R | Promise<R>,
+  timeinMs: number = 100,
+): (...args: T) => DebounceResult<R> {
+  let timeout: number | null = null;
+  const cancel = () => {
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+  };
+  return (...args: T): DebounceResult<R> => {
+    cancel();
+    const promise = new Promise<R>((resolve) => {
+      timeout = setTimeout(() => {
+        const result = fn(...args);
+        if (isPromise(result)) {
+          result.then(resolve);
+        } else {
+          resolve(result);
+        }
+      }, timeinMs);
+    });
+    return [promise, cancel];
+  };
+}
+
+export function isPromise<T>(value: T | Promise<T>): value is Promise<T> {
+  return value instanceof Promise;
+}
+
+export function isAsyncFunction<T extends any[], R>(
+  fn: (...args: T) => R | Promise<R>,
+): fn is (...args: T) => Promise<R> {
+  return fn.constructor.name === 'AsyncFunction';
 }
