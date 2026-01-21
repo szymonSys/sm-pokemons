@@ -1,77 +1,199 @@
-import {  useLayoutEffect, useRef } from "react";
-import { View, StyleSheet } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, { interpolate, runOnJS, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
+import { RefObject, forwardRef, useCallback, useLayoutEffect, useRef } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  interpolate,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
+
 export type SliderProps = {
   initialValue: number;
   onChange: (value: number) => void;
+};
+
+export interface SliderController {
+  setValue: (value: number) => void;
+  getValue: () => number;
 }
-export function Slider({ onChange, initialValue}: SliderProps) {
+
+export const Slider = forwardRef<SliderController, SliderProps>(function Slider(
+  { onChange, initialValue }: SliderProps,
+  ref,
+) {
   const sharedValue = useSharedValue(initialValue);
   const sliderRef = useRef<View>(null);
+  const thumbMarkRef = useRef<View>(null);
+  const trackMarkRef = useRef<View>(null);
   const sliderWidth = useSharedValue(0);
+  const thumbMarkWidth = useSharedValue(0);
+  const trackMarkHeight = useSharedValue(0);
+
+  const calculateValue = useCallback(
+    (x: number): number => {
+      'worklet';
+      let value = interpolate(
+        x,
+        [thumbMarkWidth.get(), sliderWidth.get() - thumbMarkWidth.get()],
+        [0, 100],
+      );
+      if (value < 0) {
+        value = 0;
+      }
+      if (value > 100) {
+        value = 100;
+      }
+      sharedValue.set(Math.ceil(value));
+      return value;
+    },
+    [sharedValue, sliderWidth, thumbMarkWidth],
+  );
 
   useLayoutEffect(() => {
-    sliderRef.current?.measure((_, __, width ) => {
+    if (ref) {
+      (ref as RefObject<SliderController>).current = {
+        setValue: (value: number) => {
+          if (value < 0) {
+            value = 0;
+          }
+          if (value > 100) {
+            value = 100;
+          }
+          sharedValue.set(value);
+        },
+        getValue: () => Math.ceil(sharedValue.get()),
+      };
+    }
+    sliderRef.current?.measure((_, __, width) => {
       sliderWidth.set(width);
     });
-  }, [sliderRef, sliderWidth]);
+    thumbMarkRef.current?.measure((_, __, width) => {
+      thumbMarkWidth.set(width);
+    });
+    trackMarkRef.current?.measure((_, __, width, height) => {
+      trackMarkHeight.set(height);
+    });
+  }, [
+    sliderRef,
+    sliderWidth,
+    thumbMarkRef,
+    thumbMarkWidth,
+    sharedValue,
+    ref,
+    trackMarkRef,
+    trackMarkHeight,
+  ]);
 
   const panGesture = Gesture.Pan()
     .onUpdate((e) => {
-      const value = interpolate(e.absoluteX, [0, sliderWidth.get()], [0, 100])
-      sharedValue.set(Math.ceil(value))
-    }).onEnd((e) => {
-     runOnJS(onChange)(sharedValue.value);
+      calculateValue(e.x);
+    })
+    .onEnd((e) => {
+      runOnJS(onChange)(sharedValue.get());
+    });
+
+  const pressGesture = Gesture.Tap()
+    .onStart((e) => {
+      calculateValue(e.x);
+    })
+    .onEnd((e) => {
+      runOnJS(onChange)(sharedValue.get());
     });
 
   const sliderThumbAnimatedStyles = useAnimatedStyle(() => {
+    const interpolatedValue = interpolate(
+      sharedValue.get(),
+      [0, 100],
+      [0, sliderWidth.get() - thumbMarkWidth.get()],
+    );
     return {
-      transform: [{ translateX: interpolate(sharedValue.value, [0, 100], [0, sliderWidth.get()]) - 80, }],
+      transform: [
+        {
+          translateX: withTiming(interpolatedValue, { duration: 10 }),
+        },
+      ],
     };
   });
 
   const sliderTrackAnimatedStyles = useAnimatedStyle(() => {
+    const interpolatedValue = interpolate(
+      sharedValue.get(),
+      [0, 100],
+      [thumbMarkWidth.get() / 2, sliderWidth.get() - thumbMarkWidth.get() / 2],
+    );
     return {
-      width: interpolate(sharedValue.value, [0, 100], [0, sliderWidth.get()]),
+      width: withTiming(interpolatedValue, { duration: 10 }),
+    };
+  });
+
+  const trackMarkAnimatedStyles = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: thumbMarkWidth.get() / 2 - trackMarkHeight.get() / 2 }],
     };
   });
 
   return (
     <View style={styles.container}>
-<GestureDetector gesture={panGesture}>
-  <View ref={sliderRef} style={[styles.slider]}>
-    <Animated.View style={[styles.sliderThumb, sliderThumbAnimatedStyles]} />
-    <Animated.View style={[styles.sliderTrack, sliderTrackAnimatedStyles]} />
-  </View>
-</GestureDetector>
+      <GestureDetector gesture={panGesture}>
+        <Animated.View ref={sliderRef} style={[styles.slider]}>
+          <Animated.View ref={trackMarkRef} style={[styles.trackMark, trackMarkAnimatedStyles]} />
+          <Animated.View
+            ref={thumbMarkRef}
+            style={[styles.sliderThumb, sliderThumbAnimatedStyles]}
+          />
+
+          <Animated.View style={[styles.sliderTrack, sliderTrackAnimatedStyles]} />
+        </Animated.View>
+      </GestureDetector>
     </View>
-  )
-}
+  );
+});
 
 const styles = StyleSheet.create({
   container: {
-    width: "100%",
-    justifyContent: "center",
-    alignItems: "center",
+    position: 'relative',
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
   },
   sliderTrack: {
-    height: "100%",
-    backgroundColor: "blue",
+    height: '100%',
+    backgroundColor: '#007bff',
+    borderTopLeftRadius: 100,
+    borderBottomLeftRadius: 100,
+    zIndex: 2,
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    opacity: 0.9,
   },
   slider: {
-    width: "100%",
-    height: 60,
-    backgroundColor: "white",
+    position: 'relative',
+    width: '100%',
+    height: 42,
+    backgroundColor: 'transparent',
   },
-  sliderThumb: {
-    position: "absolute",
+  trackMark: {
+    width: '100%',
+    height: '20%',
+    backgroundColor: 'white',
+    position: 'absolute',
+    zIndex: 1,
     top: 0,
     left: 0,
-width:80,
-height:80,
-    backgroundColor: "red",
-    borderRadius: 10,
-    zIndex: 100,
+    borderRadius: 100,
+  },
+  sliderThumb: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 42,
+    height: '100%',
+    backgroundColor: '#007bff',
+    borderRadius: 100,
+    zIndex: 2,
   },
 });
