@@ -1,8 +1,11 @@
-import { useEffect, useState, useCallback } from "react";
-import { Platform } from "react-native";
-import { BrightnessModule } from "@/specs/NativeBrightnessModule";
+import { useEffect, useState, useCallback } from 'react';
+import { Platform } from 'react-native';
+import { BrightnessModule } from 'react-native-brightness';
 
-export function useBrightness(): [brightness: number | null, changeBrightness: (brightness: number) => Promise<number>] {
+export function useBrightness(): [
+  brightness: number | null,
+  changeBrightness: (brightness: number) => Promise<number>,
+] {
   const [brightness, setBrightness] = useState<number | null>(null);
   useEffect(() => {
     BrightnessModule.getBrightness().then((brightness) => {
@@ -18,7 +21,10 @@ export function useBrightness(): [brightness: number | null, changeBrightness: (
   return [brightness, changeBrightness];
 }
 
-export function useBrightnessPermission(): [permission: boolean | null, requestPermission: () => Promise<void>] {
+export function useBrightnessPermission(): [
+  permission: boolean | null,
+  requestPermission: () => Promise<void>,
+] {
   const [permission, setPermission] = useState<boolean | null>(null);
   useEffect(() => {
     BrightnessModule.hasWriteSettingsPermission().then((permission) => {
@@ -41,12 +47,12 @@ export function useBrightnessListener() {
       const currentBrightness = await BrightnessModule.getBrightness();
       setBrightness(currentBrightness);
     } catch (error) {
-      console.error("Failed to get brightness:", error);
+      console.error('Failed to get brightness:', error);
     }
   }, []);
 
   useEffect(() => {
-    if (Platform.OS !== "android") {
+    if (Platform.OS !== 'android') {
       refresh();
       return;
     }
@@ -69,11 +75,9 @@ export function useBrightnessListener() {
   };
 }
 
-export function useBrightnessCallback(
-  callback: (brightness: number) => void
-) {
+export function useBrightnessCallback(callback: (brightness: number) => void) {
   useEffect(() => {
-    if (Platform.OS !== "android") {
+    if (Platform.OS !== 'android') {
       BrightnessModule.getBrightness().then(callback).catch(console.error);
       return;
     }

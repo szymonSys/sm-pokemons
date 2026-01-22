@@ -1,8 +1,8 @@
-import { StorageKeys } from "@/constants/store-keys";
-import * as SecureStore from "expo-secure-store";
-import { useCallback, useEffect, useState } from "react";
+import { StorageKeys } from '@/constants/store-keys';
+import * as SecureStore from 'expo-secure-store';
+import { useCallback, useEffect, useState } from 'react';
 
-export { StorageKeys as Keys } from "@/constants/store-keys";
+export { StorageKeys as Keys } from '@/constants/store-keys';
 
 export interface Storage<T> {
   save: (value: T) => Promise<void>;
@@ -17,7 +17,7 @@ export interface Storage<T> {
 
 export function useStore<T>(
   key: StorageKeys,
-  { autoLoad = true }: { autoLoad?: boolean } = {}
+  { autoLoad = true }: { autoLoad?: boolean } = {},
 ): Storage<T> {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,12 +32,12 @@ export function useStore<T>(
         await SecureStore.setItemAsync(key, item);
         setItem(value);
       } catch (error) {
-        console.error("Error saving item to storage:", error);
-        setError("Error saving item to storage");
+        console.error('Error saving item to storage:', error);
+        setError('Error saving item to storage');
       }
       setLoading(false);
     },
-    [key]
+    [key],
   );
 
   const get = useCallback(async (): Promise<T | null> => {
@@ -50,8 +50,8 @@ export function useStore<T>(
         setItem(parsedItem);
         return parsedItem;
       } catch (error) {
-        console.error("Error parsing stored item:", error);
-        setError("Error parsing stored item");
+        console.error('Error parsing stored item:', error);
+        setError('Error parsing stored item');
         setItem(null);
         return null;
       }
