@@ -2,10 +2,10 @@ import type { TurboModule } from 'react-native';
 import { TurboModuleRegistry, NativeEventEmitter, NativeModules, Platform } from 'react-native';
 
 export interface Spec extends TurboModule {
-  getBrightness(): Promise<number>;
-  setBrightness(brightness: number): Promise<number>;
-  hasWriteSettingsPermission(): Promise<boolean>;
-  requestWriteSettingsPermission(): Promise<boolean>;
+  getBrightness(): number;
+  setBrightness(brightness: number): number;
+  hasWriteSettingsPermission(): boolean;
+  requestWriteSettingsPermission(): boolean;
   addListener(eventName: string): void;
   removeListeners(count: number): void;
 }

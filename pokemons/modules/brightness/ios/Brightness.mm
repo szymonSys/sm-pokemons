@@ -18,29 +18,20 @@
     return self;
 }
 
-- (void)getBrightness:(RCTPromiseResolveBlock)resolve
-               reject:(RCTPromiseRejectBlock)reject {
-  double brightness = [_brightness getBrightness];
-  resolve(@(brightness));
+- (NSNumber *)getBrightness {
+  return @([_brightness getBrightness]);
 }
 
-- (void)setBrightness:(double)brightness
-              resolve:(RCTPromiseResolveBlock)resolve
-               reject:(RCTPromiseRejectBlock)reject {
-  double result = [_brightness setBrightness:brightness];
-  resolve(@(result));
+- (NSNumber *)setBrightness:(double)brightness {
+  return @([_brightness setBrightness:brightness]);
 }
 
-- (void)hasWriteSettingsPermission:(RCTPromiseResolveBlock)resolve
-                            reject:(RCTPromiseRejectBlock)reject {
-  BOOL hasPermission = [_brightness hasWriteSettingsPermission];
-  resolve(@(hasPermission));
+- (NSNumber *)hasWriteSettingsPermission {
+  return @([_brightness hasWriteSettingsPermission]);
 }
 
-- (void)requestWriteSettingsPermission:(RCTPromiseResolveBlock)resolve
-                                reject:(RCTPromiseRejectBlock)reject {
-  BOOL granted = [_brightness requestWriteSettingsPermission];
-  resolve(@(granted));
+- (NSNumber *)requestWriteSettingsPermission {
+  return @([_brightness requestWriteSettingsPermission]);
 }
 
 - (void)addListener:(NSString *)eventName {

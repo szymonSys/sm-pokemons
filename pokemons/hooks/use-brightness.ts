@@ -4,17 +4,16 @@ import { BrightnessModule } from 'react-native-brightness';
 
 export function useBrightness(): [
   brightness: number | null,
-  changeBrightness: (brightness: number) => Promise<number>,
+  changeBrightness: (brightness: number) => number,
 ] {
   const [brightness, setBrightness] = useState<number | null>(null);
   useEffect(() => {
-    BrightnessModule.getBrightness().then((brightness) => {
-      setBrightness(brightness);
-    });
+    const currentBrightness = BrightnessModule.getBrightness();
+    setBrightness(currentBrightness);
   }, []);
 
-  async function changeBrightness(brightness: number) {
-    const newBrightness = await BrightnessModule.setBrightness(brightness);
+  function changeBrightness(brightness: number) {
+    const newBrightness = BrightnessModule.setBrightness(brightness);
     setBrightness(newBrightness);
     return newBrightness;
   }
@@ -23,17 +22,16 @@ export function useBrightness(): [
 
 export function useBrightnessPermission(): [
   permission: boolean | null,
-  requestPermission: () => Promise<void>,
+  requestPermission: () => void,
 ] {
   const [permission, setPermission] = useState<boolean | null>(null);
   useEffect(() => {
-    BrightnessModule.hasWriteSettingsPermission().then((permission) => {
-      setPermission(permission);
-    });
+    const hasPermission = BrightnessModule.hasWriteSettingsPermission();
+    setPermission(hasPermission);
   }, []);
-  async function requestPermission() {
-    const permission = await BrightnessModule.requestWriteSettingsPermission();
-    setPermission(permission);
+  function requestPermission() {
+    const granted = BrightnessModule.requestWriteSettingsPermission();
+    setPermission(granted);
   }
   return [permission, requestPermission];
 }
@@ -42,9 +40,9 @@ export function useBrightnessListener() {
   const [brightness, setBrightness] = useState<number | null>(null);
   const [isListening, setIsListening] = useState(false);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(() => {
     try {
-      const currentBrightness = await BrightnessModule.getBrightness();
+      const currentBrightness = BrightnessModule.getBrightness();
       setBrightness(currentBrightness);
     } catch (error) {
       console.error('Failed to get brightness:', error);
@@ -78,7 +76,7 @@ export function useBrightnessListener() {
 export function useBrightnessCallback(callback: (brightness: number) => void) {
   useEffect(() => {
     if (Platform.OS !== 'android') {
-      BrightnessModule.getBrightness().then(callback).catch(console.error);
+      callback(BrightnessModule.getBrightness());
       return;
     }
 
