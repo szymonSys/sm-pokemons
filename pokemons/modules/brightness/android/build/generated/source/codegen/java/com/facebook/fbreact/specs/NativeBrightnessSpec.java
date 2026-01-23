@@ -21,7 +21,7 @@ import com.facebook.react.turbomodule.core.interfaces.TurboModule;
 import javax.annotation.Nonnull;
 
 public abstract class NativeBrightnessSpec extends ReactContextBaseJavaModule implements TurboModule {
-  public static final String NAME = "NativeBrightnessModule";
+  public static final String NAME = "Brightness";
 
   public NativeBrightnessSpec(ReactApplicationContext reactContext) {
     super(reactContext);

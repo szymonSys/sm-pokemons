@@ -53,7 +53,7 @@ NativeBrightnessSpecJSI::NativeBrightnessSpecJSI(const JavaTurboModule::InitPara
 }
 
 std::shared_ptr<TurboModule> BrightnessSpec_ModuleProvider(const std::string &moduleName, const JavaTurboModule::InitParams &params) {
-  if (moduleName == "NativeBrightnessModule") {
+  if (moduleName == "Brightness") {
     return std::make_shared<NativeBrightnessSpecJSI>(params);
   }
   return nullptr;

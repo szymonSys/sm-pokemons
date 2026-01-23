@@ -40,7 +40,7 @@ public:
     return delegate_.getPropertyNames(runtime);
   }
 
-  static constexpr std::string_view kModuleName = "NativeBrightnessModule";
+  static constexpr std::string_view kModuleName = "Brightness";
 
 protected:
   NativeBrightnessCxxSpec(std::shared_ptr<CallInvoker> jsInvoker)

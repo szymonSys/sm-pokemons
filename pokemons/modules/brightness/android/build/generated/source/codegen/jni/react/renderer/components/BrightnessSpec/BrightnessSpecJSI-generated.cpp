@@ -48,7 +48,7 @@ static jsi::Value __hostFunction_NativeBrightnessCxxSpecJSI_removeListeners(jsi:
 }
 
 NativeBrightnessCxxSpecJSI::NativeBrightnessCxxSpecJSI(std::shared_ptr<CallInvoker> jsInvoker)
-  : TurboModule("NativeBrightnessModule", jsInvoker) {
+  : TurboModule("Brightness", jsInvoker) {
   methodMap_["getBrightness"] = MethodMetadata {0, __hostFunction_NativeBrightnessCxxSpecJSI_getBrightness};
   methodMap_["setBrightness"] = MethodMetadata {1, __hostFunction_NativeBrightnessCxxSpecJSI_setBrightness};
   methodMap_["hasWriteSettingsPermission"] = MethodMetadata {0, __hostFunction_NativeBrightnessCxxSpecJSI_hasWriteSettingsPermission};
