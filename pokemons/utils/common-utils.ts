@@ -15,21 +15,25 @@ export function throttleFactory<T extends any[], R>(fn: (...args: T) => R, timei
   };
 }
 
-export type DebounceResult<R> = [result: Promise<R>, cancel: () => void];
+export type DebounceFn<T extends any[], R> = (...args: T) => Promise<R>;
 
+export type CancelDebounceFn = () => void;
+
+export type Debounce<T extends any[], R> = [debounce: DebounceFn<T, R>, cancel: CancelDebounceFn];
 export function debounceFactory<T extends any[], R>(
   fn: (...args: T) => R | Promise<R>,
   timeinMs: number = 100,
-): (...args: T) => DebounceResult<R> {
+): Debounce<T, R> {
   let timeout: number | null = null;
-  const cancel = () => {
+  const cancel: CancelDebounceFn = () => {
     if (timeout) {
       clearTimeout(timeout);
+      timeout = null;
     }
   };
-  return (...args: T): DebounceResult<R> => {
+  const debouncedFn: DebounceFn<T, R> = (...args) => {
     cancel();
-    const promise = new Promise<R>((resolve) => {
+    return new Promise<R>((resolve) => {
       timeout = setTimeout(() => {
         const result = fn(...args);
         if (isPromise(result)) {
@@ -39,8 +43,8 @@ export function debounceFactory<T extends any[], R>(
         }
       }, timeinMs);
     });
-    return [promise, cancel];
   };
+  return [debouncedFn, cancel];
 }
 
 export function isPromise<T>(value: T | Promise<T>): value is Promise<T> {

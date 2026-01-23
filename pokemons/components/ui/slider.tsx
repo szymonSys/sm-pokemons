@@ -1,4 +1,4 @@
-import { DebounceResult, debounceFactory } from '@/utils/common-utils';
+import { CancelDebounceFn, debounceFactory } from '@/utils/common-utils';
 import { RefObject, forwardRef, useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -14,6 +14,7 @@ export type SliderProps = {
   initialValue: number;
   onChange: (value: number) => void;
   changeProgressivelyOnceAtMs?: number;
+  onChangeDeps?: unknown[];
 };
 
 export interface SliderController {
@@ -22,36 +23,43 @@ export interface SliderController {
 }
 
 export const Slider = forwardRef<SliderController, SliderProps>(function Slider(
-  { onChange, initialValue, changeProgressivelyOnceAtMs: changeProgressivelyOnceAtMs }: SliderProps,
+  {
+    onChange: _onChange,
+    initialValue,
+    changeProgressivelyOnceAtMs: changeProgressivelyOnceAtMs,
+    onChangeDeps = [],
+  }: SliderProps,
   ref,
 ) {
+  const onChange = useCallback((value: number) => {
+    _onChange(value);
+    // disable exhaustive deps warning because onChange is memoized with onChangeDeps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, onChangeDeps);
+
   const sharedValue = useSharedValue(initialValue);
   const sliderRef = useRef<View>(null);
   const thumbMarkRef = useRef<View>(null);
   const trackMarkRef = useRef<View>(null);
-  const cancelProgressivelyChangeValueRef = useRef<DebounceResult<void>[1]>(null);
+  const cancelProgressivelyChangeValueRef = useRef<CancelDebounceFn>(null);
   const sliderWidth = useSharedValue(0);
   const thumbMarkWidth = useSharedValue(0);
   const trackMarkHeight = useSharedValue(0);
   const shouldChangeValueProgressively = useSharedValue(changeProgressivelyOnceAtMs !== undefined);
 
-  const progressivelyChangeValue = useMemo(
-    () =>
-      debounceFactory((value: number): void => {
-        onChange(value);
-      }, changeProgressivelyOnceAtMs),
-    [onChange, changeProgressivelyOnceAtMs],
-  );
+  const progressivelyChangeValue = useMemo(() => {
+    cancelProgressivelyChangeValueRef.current?.();
+    // if (changeProgressivelyOnceAtMs === undefined || changeProgressivelyOnceAtMs < 1) {
+    //   return onChange;
+    // }
+    const [debouncedUpdate, cancelUpdate] = debounceFactory((value: number): void => {
+      onChange(value);
+    }, changeProgressivelyOnceAtMs ?? 0);
+    cancelProgressivelyChangeValueRef.current = cancelUpdate;
+    return debouncedUpdate;
+  }, [onChange, changeProgressivelyOnceAtMs]);
 
-  const handleProgressivelyChangeValue = useCallback(
-    (value: number): void => {
-      const [_, cancel] = progressivelyChangeValue(value);
-      cancelProgressivelyChangeValueRef.current = cancel;
-    },
-    [progressivelyChangeValue],
-  );
-
-  const handleOnSlideEnd = useCallback(
+  const handleSlideEnd = useCallback(
     (value: number): void => {
       cancelProgressivelyChangeValueRef.current?.();
       onChange(value);
@@ -73,7 +81,8 @@ export const Slider = forwardRef<SliderController, SliderProps>(function Slider(
       if (value > 100) {
         value = 100;
       }
-      sharedValue.set(Math.ceil(value));
+      value = Math.ceil(value);
+      sharedValue.set(value);
       return value;
     },
     [sharedValue, sliderWidth, thumbMarkWidth],
@@ -116,13 +125,17 @@ export const Slider = forwardRef<SliderController, SliderProps>(function Slider(
 
   const panGesture = Gesture.Pan()
     .onUpdate((e) => {
+      const previousValue = sharedValue.get();
       const value = setNormalizedValue(e.x);
+      if (previousValue === value) {
+        return;
+      }
       if (shouldChangeValueProgressively.get()) {
-        runOnJS(handleProgressivelyChangeValue)(value);
+        runOnJS(progressivelyChangeValue)(value);
       }
     })
     .onEnd((e) => {
-      runOnJS(handleOnSlideEnd)(sharedValue.get());
+      runOnJS(handleSlideEnd)(sharedValue.get());
     });
 
   const pressGesture = Gesture.Tap()

@@ -1,88 +1,73 @@
-import { useEffect, useState, useCallback } from "react";
-import { Platform } from "react-native";
-import { BrightnessModule } from "@/specs/NativeBrightnessModule";
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { Platform } from 'react-native';
+import { BrightnessEventSubscription, BrightnessModule } from 'react-native-brightness';
 
-export function useBrightness(): [brightness: number | null, changeBrightness: (brightness: number) => Promise<number>] {
+export function useBrightness(): readonly [
+  brightness: number | null,
+  changeBrightness: (brightness: number) => number,
+] {
   const [brightness, setBrightness] = useState<number | null>(null);
   useEffect(() => {
-    BrightnessModule.getBrightness().then((brightness) => {
-      setBrightness(brightness);
-    });
+    const currentBrightness = BrightnessModule.getBrightness();
+    setBrightness(currentBrightness);
   }, []);
 
-  async function changeBrightness(brightness: number) {
-    const newBrightness = await BrightnessModule.setBrightness(brightness);
+  const changeBrightness = useCallback((brightness: number) => {
+    const newBrightness = BrightnessModule.setBrightness(brightness);
     setBrightness(newBrightness);
     return newBrightness;
-  }
-  return [brightness, changeBrightness];
+  }, []);
+  return [brightness, changeBrightness] as const;
 }
 
-export function useBrightnessPermission(): [permission: boolean | null, requestPermission: () => Promise<void>] {
+export function useBrightnessPermission(): [
+  permission: boolean | null,
+  requestPermission: () => void,
+] {
   const [permission, setPermission] = useState<boolean | null>(null);
   useEffect(() => {
-    BrightnessModule.hasWriteSettingsPermission().then((permission) => {
-      setPermission(permission);
-    });
+    const hasPermission = BrightnessModule.hasWriteSettingsPermission();
+    setPermission(hasPermission);
   }, []);
-  async function requestPermission() {
-    const permission = await BrightnessModule.requestWriteSettingsPermission();
-    setPermission(permission);
+  function requestPermission() {
+    const granted = BrightnessModule.requestWriteSettingsPermission();
+    setPermission(granted);
   }
   return [permission, requestPermission];
 }
 
-export function useBrightnessListener() {
-  const [brightness, setBrightness] = useState<number | null>(null);
-  const [isListening, setIsListening] = useState(false);
+export function useBrightnessCallback(
+  callback: (brightness: number) => void,
+  deps: unknown[] = [],
+) {
+  const subscriptionRef = useRef<BrightnessEventSubscription | null>(null);
 
-  const refresh = useCallback(async () => {
-    try {
-      const currentBrightness = await BrightnessModule.getBrightness();
-      setBrightness(currentBrightness);
-    } catch (error) {
-      console.error("Failed to get brightness:", error);
-    }
+  // disable exhaustive deps warning because callback is memoized with deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const memoizedCallback = useCallback((brightness: number) => callback(brightness), deps);
+
+  const cleanup = useCallback(() => {
+    subscriptionRef.current?.remove();
+    subscriptionRef.current = null;
   }, []);
 
-  useEffect(() => {
-    if (Platform.OS !== "android") {
-      refresh();
+  const startListening = useCallback(() => {
+    cleanup();
+    if (Platform.OS !== 'android') {
+      memoizedCallback(BrightnessModule.getBrightness());
       return;
     }
-
-    const subscription = BrightnessModule.addEventListener((event) => {
-      setBrightness(event.brightness);
+    subscriptionRef.current = BrightnessModule.addEventListener((event) => {
+      memoizedCallback(event.brightness);
     });
-    setIsListening(true);
+  }, [memoizedCallback, cleanup]);
 
-    return () => {
-      subscription.remove();
-      setIsListening(false);
-    };
-  }, [refresh]);
-
-  return {
-    brightness,
-    isListening,
-    refresh,
-  };
-}
-
-export function useBrightnessCallback(
-  callback: (brightness: number) => void
-) {
   useEffect(() => {
-    if (Platform.OS !== "android") {
-      BrightnessModule.getBrightness().then(callback).catch(console.error);
-      return;
-    }
-
-    const subscription = BrightnessModule.addEventListener((event) => {
-      callback(event.brightness);
-    });
+    startListening();
     return () => {
-      subscription.remove();
+      cleanup();
     };
-  }, [callback]);
+  }, [cleanup, startListening]);
+
+  return { refresh: startListening };
 }

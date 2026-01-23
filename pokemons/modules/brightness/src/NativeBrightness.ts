@@ -2,15 +2,15 @@ import type { TurboModule } from 'react-native';
 import { TurboModuleRegistry, NativeEventEmitter, NativeModules, Platform } from 'react-native';
 
 export interface Spec extends TurboModule {
-  getBrightness(): Promise<number>;
-  setBrightness(brightness: number): Promise<number>;
-  hasWriteSettingsPermission(): Promise<boolean>;
-  requestWriteSettingsPermission(): Promise<boolean>;
+  getBrightness(): number;
+  setBrightness(brightness: number): number;
+  hasWriteSettingsPermission(): boolean;
+  requestWriteSettingsPermission(): boolean;
   addListener(eventName: string): void;
   removeListeners(count: number): void;
 }
 
-const NativeBrightnessModule = TurboModuleRegistry.getEnforcing<Spec>('NativeBrightnessModule');
+const NativeBrightnessModule = TurboModuleRegistry.getEnforcing<Spec>('Brightness');
 
 export const BrightnessEvents = {
   BRIGHTNESS_CHANGE: 'onBrightnessChange',
@@ -26,15 +26,13 @@ export interface BrightnessEventSubscription {
   remove: () => void;
 }
 
-const eventEmitter = Platform.OS === 'android' 
-  ? new NativeEventEmitter(NativeModules.NativeBrightnessModule)
-  : null;
+const eventEmitter =
+  Platform.OS === 'android' ? new NativeEventEmitter(NativeModules.NativeBrightnessModule) : null;
 
 let listenerCount = 0;
 const callbackRegistry = new Map<BrightnessEventCallback, () => void>();
 
 export const BrightnessModule = {
-
   getBrightness: () => NativeBrightnessModule.getBrightness(),
 
   setBrightness: (brightness: number) => NativeBrightnessModule.setBrightness(brightness),
@@ -50,7 +48,7 @@ export const BrightnessModule = {
     }
     const nativeSubscription = eventEmitter.addListener(
       BrightnessEvents.BRIGHTNESS_CHANGE,
-      callback
+      callback,
     );
 
     if (listenerCount === 0) {
@@ -60,9 +58,9 @@ export const BrightnessModule = {
 
     const remove = () => {
       if (!callbackRegistry.has(callback)) {
-        return; 
+        return;
       }
-      
+
       nativeSubscription.remove();
       callbackRegistry.delete(callback);
       listenerCount--;
