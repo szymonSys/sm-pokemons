@@ -13,7 +13,6 @@
 package com.facebook.fbreact.specs;
 
 import com.facebook.proguard.annotations.DoNotStrip;
-import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
@@ -32,21 +31,21 @@ public abstract class NativeBrightnessSpec extends ReactContextBaseJavaModule im
     return NAME;
   }
 
-  @ReactMethod
+  @ReactMethod(isBlockingSynchronousMethod = true)
   @DoNotStrip
-  public abstract void getBrightness(Promise promise);
+  public abstract double getBrightness();
 
-  @ReactMethod
+  @ReactMethod(isBlockingSynchronousMethod = true)
   @DoNotStrip
-  public abstract void setBrightness(double brightness, Promise promise);
+  public abstract double setBrightness(double brightness);
 
-  @ReactMethod
+  @ReactMethod(isBlockingSynchronousMethod = true)
   @DoNotStrip
-  public abstract void hasWriteSettingsPermission(Promise promise);
+  public abstract boolean hasWriteSettingsPermission();
 
-  @ReactMethod
+  @ReactMethod(isBlockingSynchronousMethod = true)
   @DoNotStrip
-  public abstract void requestWriteSettingsPermission(Promise promise);
+  public abstract boolean requestWriteSettingsPermission();
 
   @ReactMethod
   @DoNotStrip

@@ -20,10 +20,10 @@ protected:
   NativeBrightnessCxxSpecJSI(std::shared_ptr<CallInvoker> jsInvoker);
 
 public:
-  virtual jsi::Value getBrightness(jsi::Runtime &rt) = 0;
-  virtual jsi::Value setBrightness(jsi::Runtime &rt, double brightness) = 0;
-  virtual jsi::Value hasWriteSettingsPermission(jsi::Runtime &rt) = 0;
-  virtual jsi::Value requestWriteSettingsPermission(jsi::Runtime &rt) = 0;
+  virtual double getBrightness(jsi::Runtime &rt) = 0;
+  virtual double setBrightness(jsi::Runtime &rt, double brightness) = 0;
+  virtual bool hasWriteSettingsPermission(jsi::Runtime &rt) = 0;
+  virtual bool requestWriteSettingsPermission(jsi::Runtime &rt) = 0;
   virtual void addListener(jsi::Runtime &rt, jsi::String eventName) = 0;
   virtual void removeListeners(jsi::Runtime &rt, double count) = 0;
 
@@ -56,36 +56,36 @@ private:
 
     }
 
-    jsi::Value getBrightness(jsi::Runtime &rt) override {
+    double getBrightness(jsi::Runtime &rt) override {
       static_assert(
           bridging::getParameterCount(&T::getBrightness) == 1,
           "Expected getBrightness(...) to have 1 parameters");
 
-      return bridging::callFromJs<jsi::Value>(
+      return bridging::callFromJs<double>(
           rt, &T::getBrightness, jsInvoker_, instance_);
     }
-    jsi::Value setBrightness(jsi::Runtime &rt, double brightness) override {
+    double setBrightness(jsi::Runtime &rt, double brightness) override {
       static_assert(
           bridging::getParameterCount(&T::setBrightness) == 2,
           "Expected setBrightness(...) to have 2 parameters");
 
-      return bridging::callFromJs<jsi::Value>(
+      return bridging::callFromJs<double>(
           rt, &T::setBrightness, jsInvoker_, instance_, std::move(brightness));
     }
-    jsi::Value hasWriteSettingsPermission(jsi::Runtime &rt) override {
+    bool hasWriteSettingsPermission(jsi::Runtime &rt) override {
       static_assert(
           bridging::getParameterCount(&T::hasWriteSettingsPermission) == 1,
           "Expected hasWriteSettingsPermission(...) to have 1 parameters");
 
-      return bridging::callFromJs<jsi::Value>(
+      return bridging::callFromJs<bool>(
           rt, &T::hasWriteSettingsPermission, jsInvoker_, instance_);
     }
-    jsi::Value requestWriteSettingsPermission(jsi::Runtime &rt) override {
+    bool requestWriteSettingsPermission(jsi::Runtime &rt) override {
       static_assert(
           bridging::getParameterCount(&T::requestWriteSettingsPermission) == 1,
           "Expected requestWriteSettingsPermission(...) to have 1 parameters");
 
-      return bridging::callFromJs<jsi::Value>(
+      return bridging::callFromJs<bool>(
           rt, &T::requestWriteSettingsPermission, jsInvoker_, instance_);
     }
     void addListener(jsi::Runtime &rt, jsi::String eventName) override {

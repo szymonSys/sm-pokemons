@@ -14,22 +14,22 @@ namespace facebook::react {
 
 static facebook::jsi::Value __hostFunction_NativeBrightnessSpecJSI_getBrightness(facebook::jsi::Runtime& rt, TurboModule &turboModule, const facebook::jsi::Value* args, size_t count) {
   static jmethodID cachedMethodId = nullptr;
-  return static_cast<JavaTurboModule &>(turboModule).invokeJavaMethod(rt, PromiseKind, "getBrightness", "(Lcom/facebook/react/bridge/Promise;)V", args, count, cachedMethodId);
+  return static_cast<JavaTurboModule &>(turboModule).invokeJavaMethod(rt, NumberKind, "getBrightness", "()D", args, count, cachedMethodId);
 }
 
 static facebook::jsi::Value __hostFunction_NativeBrightnessSpecJSI_setBrightness(facebook::jsi::Runtime& rt, TurboModule &turboModule, const facebook::jsi::Value* args, size_t count) {
   static jmethodID cachedMethodId = nullptr;
-  return static_cast<JavaTurboModule &>(turboModule).invokeJavaMethod(rt, PromiseKind, "setBrightness", "(DLcom/facebook/react/bridge/Promise;)V", args, count, cachedMethodId);
+  return static_cast<JavaTurboModule &>(turboModule).invokeJavaMethod(rt, NumberKind, "setBrightness", "(D)D", args, count, cachedMethodId);
 }
 
 static facebook::jsi::Value __hostFunction_NativeBrightnessSpecJSI_hasWriteSettingsPermission(facebook::jsi::Runtime& rt, TurboModule &turboModule, const facebook::jsi::Value* args, size_t count) {
   static jmethodID cachedMethodId = nullptr;
-  return static_cast<JavaTurboModule &>(turboModule).invokeJavaMethod(rt, PromiseKind, "hasWriteSettingsPermission", "(Lcom/facebook/react/bridge/Promise;)V", args, count, cachedMethodId);
+  return static_cast<JavaTurboModule &>(turboModule).invokeJavaMethod(rt, BooleanKind, "hasWriteSettingsPermission", "()Z", args, count, cachedMethodId);
 }
 
 static facebook::jsi::Value __hostFunction_NativeBrightnessSpecJSI_requestWriteSettingsPermission(facebook::jsi::Runtime& rt, TurboModule &turboModule, const facebook::jsi::Value* args, size_t count) {
   static jmethodID cachedMethodId = nullptr;
-  return static_cast<JavaTurboModule &>(turboModule).invokeJavaMethod(rt, PromiseKind, "requestWriteSettingsPermission", "(Lcom/facebook/react/bridge/Promise;)V", args, count, cachedMethodId);
+  return static_cast<JavaTurboModule &>(turboModule).invokeJavaMethod(rt, BooleanKind, "requestWriteSettingsPermission", "()Z", args, count, cachedMethodId);
 }
 
 static facebook::jsi::Value __hostFunction_NativeBrightnessSpecJSI_addListener(facebook::jsi::Runtime& rt, TurboModule &turboModule, const facebook::jsi::Value* args, size_t count) {
