@@ -1,8 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Platform } from 'react-native';
-import { BrightnessModule } from 'react-native-brightness';
+import { BrightnessEventSubscription, BrightnessModule } from 'react-native-brightness';
 
-export function useBrightness(): [
+export function useBrightness(): readonly [
   brightness: number | null,
   changeBrightness: (brightness: number) => number,
 ] {
@@ -12,12 +12,12 @@ export function useBrightness(): [
     setBrightness(currentBrightness);
   }, []);
 
-  function changeBrightness(brightness: number) {
+  const changeBrightness = useCallback((brightness: number) => {
     const newBrightness = BrightnessModule.setBrightness(brightness);
     setBrightness(newBrightness);
     return newBrightness;
-  }
-  return [brightness, changeBrightness];
+  }, []);
+  return [brightness, changeBrightness] as const;
 }
 
 export function useBrightnessPermission(): [
@@ -36,55 +36,38 @@ export function useBrightnessPermission(): [
   return [permission, requestPermission];
 }
 
-export function useBrightnessListener() {
-  const [brightness, setBrightness] = useState<number | null>(null);
-  const [isListening, setIsListening] = useState(false);
+export function useBrightnessCallback(
+  callback: (brightness: number) => void,
+  deps: unknown[] = [],
+) {
+  const subscriptionRef = useRef<BrightnessEventSubscription | null>(null);
 
-  const refresh = useCallback(() => {
-    try {
-      const currentBrightness = BrightnessModule.getBrightness();
-      setBrightness(currentBrightness);
-    } catch (error) {
-      console.error('Failed to get brightness:', error);
-    }
+  // disable exhaustive deps warning because callback is memoized with deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const memoizedCallback = useCallback((brightness: number) => callback(brightness), deps);
+
+  const cleanup = useCallback(() => {
+    subscriptionRef.current?.remove();
+    subscriptionRef.current = null;
   }, []);
 
-  useEffect(() => {
+  const startListening = useCallback(() => {
+    cleanup();
     if (Platform.OS !== 'android') {
-      refresh();
+      memoizedCallback(BrightnessModule.getBrightness());
       return;
     }
-
-    const subscription = BrightnessModule.addEventListener((event) => {
-      setBrightness(event.brightness);
+    subscriptionRef.current = BrightnessModule.addEventListener((event) => {
+      memoizedCallback(event.brightness);
     });
-    setIsListening(true);
+  }, [memoizedCallback, cleanup]);
 
-    return () => {
-      subscription.remove();
-      setIsListening(false);
-    };
-  }, [refresh]);
-
-  return {
-    brightness,
-    isListening,
-    refresh,
-  };
-}
-
-export function useBrightnessCallback(callback: (brightness: number) => void) {
   useEffect(() => {
-    if (Platform.OS !== 'android') {
-      callback(BrightnessModule.getBrightness());
-      return;
-    }
-
-    const subscription = BrightnessModule.addEventListener((event) => {
-      callback(event.brightness);
-    });
+    startListening();
     return () => {
-      subscription.remove();
+      cleanup();
     };
-  }, [callback]);
+  }, [cleanup, startListening]);
+
+  return { refresh: startListening };
 }
