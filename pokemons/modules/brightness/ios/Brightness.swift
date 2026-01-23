@@ -22,8 +22,10 @@ public class NativeBrightness: NSObject {
     public func setBrightness(_ brightness: Double) -> Double {
         let clampedBrightness = min(max(brightness, 0.0), 1.0)
         let roundedBrightness = roundToTwoDecimals(clampedBrightness)
-        
-        UIScreen.main.brightness = CGFloat(roundedBrightness)
+
+        DispatchQueue.main.async {
+            UIScreen.main.brightness = CGFloat(roundedBrightness)
+        }
         
         return roundedBrightness
     }

@@ -61,7 +61,7 @@ export default function FavoriteView() {
             <Slider
               ref={sliderControllerRef}
               initialValue={brightness * 100}
-              changeProgressivelyOnceAtMs={100}
+              changeProgressivelyOnceAtMs={0}
               onChange={handleChangeBrightness}
             />
           ) : null}

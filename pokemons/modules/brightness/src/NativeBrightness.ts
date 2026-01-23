@@ -10,7 +10,7 @@ export interface Spec extends TurboModule {
   removeListeners(count: number): void;
 }
 
-const NativeBrightnessModule = TurboModuleRegistry.getEnforcing<Spec>('NativeBrightnessModule');
+const NativeBrightnessModule = TurboModuleRegistry.getEnforcing<Spec>('Brightness');
 
 export const BrightnessEvents = {
   BRIGHTNESS_CHANGE: 'onBrightnessChange',
