@@ -1,0 +1,25 @@
+{
+  "name": "react-native-brightness",
+  "version": "0.0.0",
+  "description": "brigntness management library",
+  "main": "src/index",
+  "codegenConfig": {
+    "name": "BrightnessSpec",
+    "type": "modules",
+    "jsSrcsDir": "src"
+  },
+  "author": " <> ()",
+  "license": "UNLICENSED",
+  "homepage": "#readme",
+  "create-react-native-library": {
+    "type": "turbo-module",
+    "languages": "kotlin-objc",
+    "tools": [
+      "eslint",
+      "jest",
+      "lefthook",
+      "release-it"
+    ],
+    "version": "0.57.0"
+  }
+}

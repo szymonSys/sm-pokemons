@@ -1,15 +1,13 @@
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
-import { StyleSheet, useWindowDimensions, View } from "react-native";
+import { StyleSheet, useWindowDimensions } from 'react-native';
 import Animated, {
   interpolate,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-} from "react-native-reanimated";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { useLayoutEffect, useRef } from "react";
+} from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { useLayoutEffect, useRef } from 'react';
 
 export default function SwipeView() {
   const cardStartPosition = useSharedValue({ x: 0, y: 0 });
@@ -66,11 +64,7 @@ export default function SwipeView() {
         { translateY: withSpring(cardPosition.value.y) },
         { scale: withSpring(cardScale.value) },
         {
-          rotate: `${interpolate(
-            cardPosition.value.x,
-            [-1000, 0, 1000],
-            [-90, 0, 90]
-          )}deg`,
+          rotate: `${interpolate(cardPosition.value.x, [-1000, 0, 1000], [-90, 0, 90])}deg`,
         },
       ],
     };
@@ -79,10 +73,7 @@ export default function SwipeView() {
   return (
     <SafeAreaView style={StyleSheet.absoluteFill}>
       <GestureDetector gesture={dragGesture}>
-        <Animated.View
-          ref={cardRef}
-          style={[styles.card, cardAnimatedStyles]}
-        ></Animated.View>
+        <Animated.View ref={cardRef} style={[styles.card, cardAnimatedStyles]}></Animated.View>
       </GestureDetector>
     </SafeAreaView>
   );
@@ -90,15 +81,15 @@ export default function SwipeView() {
 
 const styles = StyleSheet.create({
   card: {
-    width: "80%",
-    height: "80%",
-    backgroundColor: "#222222",
-    position: "absolute",
+    width: '80%',
+    height: '80%',
+    backgroundColor: '#222222',
+    position: 'absolute',
     top: 0,
     left: 0,
     borderRadius: 32,
   },
   text: {
-    color: "#f1f1f1",
+    color: '#f1f1f1',
   },
 });
