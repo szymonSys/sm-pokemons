@@ -3,15 +3,17 @@ export function throttleFactory<T extends any[], R>(
   timeinMs: number = 100
 ) {
   let lastInvokingTime = Date.now();
+  let lastResult: R | undefined = undefined;
   return (
     ...args: T
-  ): [result: R, invoked: true] | [result: undefined, invoked: false] => {
+  ): [result: R, invoked: true] | [result: R | undefined, invoked: false] => {
     const now = Date.now();
     const shouldInvoke = now - lastInvokingTime >= timeinMs;
     if (shouldInvoke) {
       lastInvokingTime = now;
-      return [fn(...args), true];
+      lastResult = fn(...args);
+      return [lastResult, true];
     }
-    return [undefined, false];
+    return [lastResult, false];
   };
 }
