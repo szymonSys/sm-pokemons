@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android", "web"],
+  "apple": {
+    "modules": ["GyroscopeModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.gyroscope.GyroscopeModule"]
+  }
+}
