@@ -1,6 +1,6 @@
 import { GetPokemonsRequestParams, getPokemons } from "@/apis/pokemons-api";
 import { useSwipeList } from "@/hooks/use-swipe-list";
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { ActivityIndicator, Dimensions, StyleSheet, View } from "react-native";
 import { PokemonSwipeCard } from "./pokemon-swipe-card";
 import { GestureDetector } from "react-native-gesture-handler";
@@ -29,22 +29,19 @@ export function PokemonsSwipingList() {
     },
   });
 
-  const bufferCards = useMemo(() => {
-    return itemsWindow.map(({ item, computeStyles }) => {
-      return (
-        <PokemonSwipeCard
-          key={item.url}
-          pokemon={item}
-          computeStyles={computeStyles}
-        />
-      );
-    });
-  }, [itemsWindow]);
   return (
     <View style={styles.root}>
       <GestureDetector gesture={gesture}>
         <Animated.View style={[styles.cardsContainer]}>
-          {bufferCards}
+          {itemsWindow.map(({ item, computeStyles }) => {
+            return (
+              <PokemonSwipeCard
+                key={item.url}
+                pokemon={item}
+                computeStyles={computeStyles}
+              />
+            );
+          })}
         </Animated.View>
       </GestureDetector>
       {isLoading && <ActivityIndicator size="large" color="#000" />}
