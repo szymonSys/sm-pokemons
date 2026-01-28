@@ -1,5 +1,16 @@
-import { Button, StyleSheet, useWindowDimensions, Text } from "react-native";
+import {
+  Button,
+  StyleSheet,
+  useWindowDimensions,
+  Text,
+  StyleProp,
+  ViewStyle,
+  View,
+} from "react-native";
+import { Image } from "expo-image";
 import Animated, {
+  SharedValue,
+  createAnimatedComponent,
   interpolate,
   runOnJS,
   useAnimatedStyle,
@@ -8,180 +19,215 @@ import Animated, {
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import {
+  PropsWithChildren,
+  RefObject,
+  forwardRef,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+} from "react";
 import { usePokemonsWithBuffer } from "@/hooks/pokemons/use-pokemons-with-buffer";
 import { useRunOnJS } from "react-native-worklets-core";
 import { Card } from "@/components/ui/card";
+import { PokemonWithDetails } from "@/apis/pokemons-api";
+import { PokemonDetails } from "@/components/pokemon-details";
+
+const SCALE_UP_FACTOR = 0.25;
+const VELOCITY_THRESHOLD = 1200;
+const DISTANCE_THRESHOLD_FACTOR = 0.5;
+
+const CARD_HEIGHT = 700;
+const CARD_SPACING = 16;
 
 export default function SwipeView() {
   const {
-    pokemonsWindow,
-    currentIndex: index,
+    leftWindow: prevPokemons,
+    rightWindow: nextPokemons,
+    current: currentPokemon,
     setNext,
     setPrevious,
-    prev,
-    current,
-    next,
+    pokemons,
+    prevPokemon,
+    nextPokemon,
     hasPrev,
     hasNext,
+    buffer,
+    bufferCurrentIndex,
+    currentIndex,
   } = usePokemonsWithBuffer();
 
   const cardStartPosition = useSharedValue({ x: 0, y: 0 });
-  const cardPosition = useSharedValue({ x: 0, y: 0 });
-  const cardScale = useSharedValue(1);
-  const hasNextShared = useSharedValue(hasNext);
-  const hasPrevShared = useSharedValue(hasPrev);
+  const cardStartY = useSharedValue(0);
+  const cardHeightShared = useSharedValue(0);
+  const cardWidthShared = useSharedValue(0);
   const { width, height } = useWindowDimensions();
 
   const translateY = useSharedValue(0);
 
-  const pan = Gesture.Pan()
+  const panGesture = Gesture.Pan()
+    .onStart((e) => {
+      cardStartY.set(translateY.get());
+    })
     .onUpdate((e) => {
-      let dragY = e.translationY;
-
-      if (!hasPrevShared.value && dragY > 0) dragY *= 0.25;
-      if (!hasNextShared.value && dragY < 0) dragY *= 0.25;
-
-      translateY.value = dragY;
+      const shouldScaleUp =
+        (hasNext && e.translationY < 0) || (hasPrev && e.translationY > 0);
+      const dragY = shouldScaleUp
+        ? e.translationY * SCALE_UP_FACTOR
+        : e.translationY;
+      translateY.set(dragY);
     })
     .onEnd((e) => {
-      const dragY = translateY.value;
+      const dragY = translateY.get();
       const velocityY = e.velocityY;
-
-      const distanceThreshold = height * 0.2;
-      const velocityThreshold = 900;
-
-      const shouldGoNext =
-        hasNextShared.value &&
-        (dragY < -distanceThreshold || velocityY < -velocityThreshold);
-      const shouldGoPrev =
-        hasPrevShared.value &&
-        (dragY > distanceThreshold || velocityY > velocityThreshold);
-
-      if (shouldGoNext) {
-        translateY.value = withSpring(-height, undefined, (finished) => {
-          if (finished) {
-            translateY.value = 0;
-            runOnJS(setNext)();
-          }
-        });
+      const velocityTresholdExceeded = Math.abs(velocityY) > VELOCITY_THRESHOLD;
+      const distanceTresholdExceeded =
+        Math.abs(dragY) > height * DISTANCE_THRESHOLD_FACTOR;
+      if (velocityTresholdExceeded || distanceTresholdExceeded) {
+        const shouldGoNext = hasNext && e.translationY < 0 && velocityY < 0;
+        const shouldGoPrev = hasPrev && e.translationY > 0 && velocityY > 0;
+        console.log({ shouldGoNext, shouldGoPrev, hasPrev, dragY, velocityY });
+        if (shouldGoNext) {
+          runOnJS(setNext)();
+          translateY.set(withSpring(0));
+          // const offset = -(CARD_HEIGHT + CARD_SPACING) * (currentIndex + 1);
+          // console.log("shouldGoNext", offset);
+          // translateY.value = withSpring(offset, undefined, (finished) => {
+          //   if (finished) {
+          //     runOnJS(setNext)();
+          //   }
+          // });
+        } else if (shouldGoPrev) {
+          runOnJS(setPrevious)();
+          translateY.set(withSpring(0));
+        } else {
+          translateY.set(withSpring(0));
+          // translateY.set(withSpring(cardStartY.get()));
+        }
         return;
       }
-
-      if (shouldGoPrev) {
-        translateY.value = withSpring(height, undefined, (finished) => {
-          if (finished) {
-            translateY.value = 0;
-            runOnJS(setPrevious)();
-          }
-        });
-        return;
-      }
-
-      translateY.value = withSpring(0);
+      translateY.set(withSpring(0));
+      // translateY.set(withSpring(cardStartY.get()));
     });
 
-  // Each card has a base position and follows translateY
-  const prevStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: -height + translateY.value }],
-  }));
-
-  const currStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-  }));
-
-  const nextStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: height + translateY.value }],
+  const containerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.get() }],
   }));
 
   const cardRef = useRef<Animated.View | null>(null);
 
-  const cardMesurementsRef = useRef({
-    width: 0,
-    height: 0,
-    x: 0,
-    y: 0,
-  });
-
-  useLayoutEffect(() => {
-    cardRef.current?.measure((x, y, cardWidth, cardHeight) => {
-      cardStartPosition.set({
-        y: height / 2 - cardHeight / 2,
-        x: width / 2 - cardWidth / 2,
-      });
-      cardPosition.set({
-        y: height / 2 - cardHeight / 2,
-        x: width / 2 - cardWidth / 2,
-      });
-
-      cardMesurementsRef.current = {
-        width: cardWidth,
-        height: cardHeight,
-        x,
-        y,
-      };
+  const bufferCards = useMemo(() => {
+    const startIndex = Math.max(0, currentIndex - 2);
+    const endIndex = Math.min(pokemons.length - 1, startIndex + 5);
+    return pokemons.slice(startIndex, endIndex).map((p, index) => {
+      return (
+        <AnimatedCard
+          key={p.url}
+          details={p}
+          index={startIndex + index}
+          currentIndex={currentIndex}
+          translateY={translateY}
+        />
+      );
     });
-  }, [width, height, cardPosition, cardStartPosition]);
-
-  const dragGesture = Gesture.Pan()
-    .onStart((e) => {
-      cardScale.set(1.1);
-    })
-    .onUpdate((e) => {
-      cardPosition.set({
-        x: e.translationX + cardStartPosition.value.x,
-        y: e.translationY + cardStartPosition.value.y,
-      });
-    })
-    .onEnd((e) => {
-      cardScale.set(1);
-      cardPosition.set(cardStartPosition.value);
-    });
-
-  useEffect(() => {
-    console.log(
-      JSON.stringify(
-        {
-          left: pokemonsWindow.leftWindow.map((item) => item.url),
-          right: pokemonsWindow.rightWindow.map((item) => item.url),
-          current: pokemonsWindow.current?.url,
-          window: pokemonsWindow.window.map((item) => item.url),
-          currentWindowIndex: pokemonsWindow.widnowCurrentIndex,
-          index,
-        },
-        null,
-        2
-      )
-    );
-  }, [index, pokemonsWindow]);
+  }, [pokemons, currentIndex, translateY]);
 
   return (
     <SafeAreaView style={StyleSheet.absoluteFill}>
-      {prev && (
-        <Animated.View style={[styles.card, prevStyle]}>
-          <Text>{prev.name}</Text>
-        </Animated.View>
-      )}
-      <GestureDetector gesture={pan}>
-        <Animated.View ref={cardRef} style={[styles.card, currStyle]}>
-          <Text>{current?.name}</Text>
+      <GestureDetector gesture={panGesture}>
+        <Animated.View
+          style={[
+            styles.cardsContainer,
+            // containerStyle,
+            { backgroundColor: "red" },
+          ]}
+        >
+          {/* {prevPokemon && (
+            <AnimatedCard details={prevPokemon} style={prevCardStyle} />
+          )}
+          {currentPokemon && (
+            <AnimatedCard
+              ref={cardRef}
+              details={currentPokemon}
+              style={currentCardStyle}
+            />
+          )}
+          {nextPokemon && (
+            <AnimatedCard details={nextPokemon} style={nextCardStyle} />
+          )} */}
+          {bufferCards}
         </Animated.View>
       </GestureDetector>
-      {next && (
-        <Animated.View style={[styles.card, nextStyle]}>
-          <Text>{next.name}</Text>
-        </Animated.View>
-      )}
     </SafeAreaView>
   );
 }
 
+const AnimatedCard = ({
+  details,
+  style,
+  ref,
+  index,
+  currentIndex,
+  translateY,
+}: PropsWithChildren<{
+  details: PokemonWithDetails;
+  style?: StyleProp<ViewStyle>;
+  ref?: RefObject<Animated.View | null>;
+  index: number;
+  currentIndex: number;
+  translateY: SharedValue<number>;
+}>) => {
+  const multiplier = index >= currentIndex ? 1 : -1;
+  const offset =
+    (CARD_HEIGHT + CARD_SPACING) * multiplier * Math.abs(index - currentIndex);
+  console.log(details.name, index, offset);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateY: withSpring(offset + translateY.get()),
+      },
+    ],
+  }));
+
+  return (
+    <Animated.View style={[styles.card, style, animatedStyle]} ref={ref}>
+      <View style={styles.imageWrapper}>
+        <Image
+          source={details.details.sprites.front_default}
+          style={styles.image}
+        />
+      </View>
+      <Text style={styles.name}>{details.name}</Text>
+    </Animated.View>
+  );
+};
+
 const styles = StyleSheet.create({
+  image: {
+    width: 320,
+    height: 320,
+  },
+  cardsContainer: {
+    flex: 1,
+    alignItems: "center",
+    gap: CARD_SPACING,
+  },
+  imageWrapper: {
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+  },
+  name: {
+    fontSize: 32,
+    textAlign: "center",
+    marginBottom: 8,
+  },
   root: { flex: 1, backgroundColor: "#000" },
   stage: { flex: 1, overflow: "hidden" },
   card: {
     width: "80%",
-    height: "80%",
+    height: CARD_HEIGHT,
     backgroundColor: "#ffffff",
     position: "absolute",
     top: 0,

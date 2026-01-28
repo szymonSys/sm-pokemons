@@ -7,8 +7,9 @@ import {
 export type UsePokemonsResourcesOptions = {
   autoLoad?: boolean;
   bufferSize?: number;
-  bufferSizePerSide?: number;
+  windowSizePerSide?: number;
   initialOffset?: number;
+  preloadSize?: number;
 };
 
 export enum LoadingDirection {
@@ -17,12 +18,31 @@ export enum LoadingDirection {
   Next,
 }
 
+export type UsePokemonsWithBufferResult = {
+  leftWindow: PokemonWithDetails[];
+  rightWindow: PokemonWithDetails[];
+  current: PokemonWithDetails;
+  buffer: PokemonWithDetails[];
+  bufferCurrentIndex: number;
+  currentIndex: number;
+  currentPokemon: PokemonWithDetails | undefined;
+  pokemonsAreLoading: boolean;
+  pokemons: PokemonWithDetails[];
+  setPrevious: (onSet?: (index: number) => unknown) => Promise<void>;
+  setNext: (onSet?: (index: number) => unknown) => Promise<void>;
+  hasPrev: boolean;
+  hasNext: boolean;
+  prevPokemon: PokemonWithDetails | undefined;
+  nextPokemon: PokemonWithDetails | undefined;
+};
+
 export function usePokemonsWithBuffer({
   autoLoad = true,
   initialOffset = 0,
   bufferSize = 10,
-  bufferSizePerSide = 1,
-}: UsePokemonsResourcesOptions = {}) {
+  windowSizePerSide = 1,
+  preloadSize = 3,
+}: UsePokemonsResourcesOptions = {}): UsePokemonsWithBufferResult {
   const offsetRef = useRef(initialOffset);
   const [isLoading, setIsLoading] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(initialOffset);
@@ -50,11 +70,11 @@ export function usePokemonsWithBuffer({
   }
 
   async function setNext(onSet?: (index: number) => unknown) {
-    if (currentIndex + 1 >= pokemons.length) {
+    if (currentIndex + preloadSize >= pokemons.length) {
       if (!nextExists) {
         return;
       }
-      await loadPokemonsWithDetails(LoadingDirection.Next);
+      !isLoading && (await loadPokemonsWithDetails(LoadingDirection.Next));
     }
     const newIndex = currentIndex + 1;
     setCurrentIndex(newIndex);
@@ -72,50 +92,43 @@ export function usePokemonsWithBuffer({
 
   useEffect(() => {
     autoLoad && loadPokemonsWithDetails();
+    return () => {
+      setPokemons([]);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const prev: PokemonWithDetails | undefined = pokemons[currentIndex - 1];
-  const current: PokemonWithDetails | undefined = pokemons[currentIndex];
-  const next: PokemonWithDetails | undefined = pokemons[currentIndex + 1];
-
   const pokemonsWindow = useMemo(() => {
     const dataLastIndex = pokemons.length - 1;
-    const bufferLeft = currentIndex - bufferSizePerSide;
-    const bufferRight = currentIndex + bufferSizePerSide;
+    const bufferLeft = currentIndex - windowSizePerSide;
+    const bufferRight = currentIndex + windowSizePerSide;
     const startIndex = bufferLeft <= 0 ? 0 : bufferLeft;
     const endIndex = bufferRight >= dataLastIndex ? dataLastIndex : bufferRight;
-    console.log({
-      startIndex,
-      endIndex,
-      currentIndex,
-      // pokemons: pokemons.map((item, index) => ({ item: item.url, index })),
-    });
-    const window = pokemons.slice(startIndex, endIndex + 1);
     const leftWindow = pokemons.slice(startIndex, currentIndex);
     const rightWindow = pokemons.slice(currentIndex + 1, endIndex + 1);
     const current = pokemons[currentIndex];
+    const currentArr = current ? [current] : [];
     return {
       leftWindow,
       rightWindow,
       current,
-      window,
-      widnowCurrentIndex: leftWindow.length,
+      buffer: [...leftWindow, ...currentArr, ...rightWindow],
+      bufferCurrentIndex: leftWindow.length,
     };
-  }, [pokemons, currentIndex, bufferSizePerSide]);
+  }, [pokemons, currentIndex, windowSizePerSide]);
 
   return {
-    pokemonsWindow,
+    ...pokemonsWindow,
     currentIndex,
     currentPokemon: pokemons[currentIndex],
     pokemonsAreLoading: isLoading,
     pokemons,
     setPrevious,
     setNext,
-    prev,
-    current,
-    next,
-    hasPrev: !!prev,
-    hasNext: !!next,
+    hasPrev: pokemonsWindow.leftWindow.length > 0,
+    hasNext: pokemonsWindow.rightWindow.length > 0,
+    prevPokemon:
+      pokemonsWindow.leftWindow[pokemonsWindow.leftWindow.length - 1],
+    nextPokemon: pokemonsWindow.rightWindow[0],
   };
 }
