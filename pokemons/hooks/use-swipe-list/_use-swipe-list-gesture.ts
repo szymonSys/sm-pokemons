@@ -32,13 +32,12 @@ export function useSwipeGesture({
       const distanceThresholdExceeded =
         Math.abs(e.translationY) > height * distanceThresholdFactor;
 
-      const canNotProceed = !(
+      const cannotProceed = !(
         velocityThresholdExceeded || distanceThresholdExceeded
       );
 
-      translateY.set(withSpring(0));
-
-      if (canNotProceed) {
+      if (cannotProceed) {
+        translateY.set(withSpring(0));
         return;
       }
 
@@ -49,6 +48,7 @@ export function useSwipeGesture({
       } else if (shouldGoPrev) {
         runOnJS(setPrevious)();
       }
+      translateY.set(0);
     });
 
   return {
