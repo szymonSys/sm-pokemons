@@ -6,13 +6,10 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { Image } from "expo-image";
-import {
-  getPokemonDetailsById,
-  PokemonDetailsResponse,
-} from "@/apis/pokemons-api";
-import { useRouter } from "expo-router";
-import { memo, useCallback, useEffect, useState } from "react";
+import { PokemonDetailsResponse } from "@/apis/pokemons-api";
+import { memo, useCallback } from "react";
 import { capitalizeFirstLetter } from "@/utils/string-utils";
+import { usePokemon } from "@/hooks/pokemons/use-pokemon";
 
 type PokemonItemProps = {
   name: string;
@@ -26,31 +23,16 @@ export const PokemonListItem = memo(function PokemonListItem({
   name,
   onButtonPress,
 }: PokemonItemProps) {
-  const router = useRouter();
-  const [pokemonItem, setPokemonItem] = useState<PokemonDetailsResponse | null>(
-    null
-  );
-  const [loading, setLoading] = useState(false);
-
-  const handleFetchPokemonDetails = useCallback(async () => {
-    setLoading(true);
-    const { data } = await getPokemonDetailsById(name);
-    data && setPokemonItem(data);
-    setLoading(false);
-  }, [name]);
+  const { pokemon, pokemonIsLoading } = usePokemon({ initialIdOrName: name });
 
   const handleButtonPress = useCallback(
     (event: GestureResponderEvent) => {
-      onButtonPress && pokemonItem && onButtonPress(pokemonItem, event);
+      onButtonPress && pokemon && onButtonPress(pokemon, event);
     },
-    [onButtonPress, pokemonItem]
+    [onButtonPress, pokemon]
   );
 
-  useEffect(() => {
-    handleFetchPokemonDetails();
-  }, [handleFetchPokemonDetails]);
-
-  if (!pokemonItem || loading) {
+  if (!pokemon || pokemonIsLoading) {
     return (
       <View style={styles.wrapper}>
         <View style={styles.image} />
@@ -64,7 +46,7 @@ export const PokemonListItem = memo(function PokemonListItem({
       <View style={styles.wrapper}>
         <View style={styles.imageWrapper}>
           <Image
-            source={{ uri: pokemonItem.sprites.front_default ?? "" }}
+            source={{ uri: pokemon.sprites.front_default ?? "" }}
             style={styles.image}
           />
         </View>

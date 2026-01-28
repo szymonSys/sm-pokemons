@@ -1,7 +1,6 @@
 import { FlatList, View, StyleSheet } from "react-native";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 import {
-  getPokemons,
   PokemonDetailsResponse,
   PokemonResourceItem,
 } from "@/apis/pokemons-api";
@@ -13,34 +12,15 @@ import {
 } from "@gorhom/bottom-sheet";
 import { PokemonDetails } from "@/components/pokemon-details";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { usePokemonsResources } from "@/hooks/pokemons/use-pokemons-resources";
 
 export default function DetailsView() {
-  const [pokemons, setPokemons] = useState<PokemonResourceItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [nextUrl, setNextUrl] = useState<string | undefined>(undefined);
+  const { loadPokemonsResources, pokemonResources } = usePokemonsResources({
+    autoLoad: true,
+  });
   const [selectedPokemon, setSelectedPokemon] =
     useState<PokemonDetailsResponse | null>(null);
   const modalRef = useRef<BottomSheetModal | null>(null);
-
-  const handleFetchPokemons = async () => {
-    if (isLoading) {
-      return;
-    }
-    setIsLoading(true);
-    const response = await getPokemons({ nextUrl, limit: 20 });
-
-    setPokemons((prevPokemons) => [
-      ...prevPokemons,
-      ...(response.data?.results || []),
-    ]);
-    setNextUrl(response.data?.next || undefined);
-
-    setIsLoading(false);
-  };
-
-  useEffect(() => {
-    handleFetchPokemons();
-  }, []);
 
   const openModalWithPokemon = useCallback(
     (pokemon: PokemonDetailsResponse) => {
@@ -49,6 +29,10 @@ export default function DetailsView() {
     },
     []
   );
+
+  const handleLoadPokemons = useCallback(async () => {
+    await loadPokemonsResources();
+  }, [loadPokemonsResources]);
 
   const renderItem = useCallback(
     ({ item }: { item: PokemonResourceItem }) => {
@@ -84,10 +68,10 @@ export default function DetailsView() {
           </BottomSheetView>
         </BottomSheetModal>
         <FlatList
-          data={pokemons}
+          data={pokemonResources}
           keyExtractor={(item) => item.url}
           onEndReachedThreshold={0.3}
-          onEndReached={handleFetchPokemons}
+          onEndReached={handleLoadPokemons}
           renderItem={renderItem}
         />
       </View>
