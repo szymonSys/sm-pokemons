@@ -1,12 +1,12 @@
 import { useNavigationEvent } from '@/hooks/use-navigation-event';
 import { useStore, Keys } from '@/hooks/use-storage';
 import { Redirect, useRouter } from 'expo-router';
-import { Button, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Button, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  useBrightness,
   useBrightnessCallback,
   useBrightnessPermission,
+  useStatelessBrightness,
 } from '@/hooks/use-brightness';
 import { Slider, SliderController } from '@/components/ui/slider';
 import { useEffect, useRef, useState } from 'react';
@@ -28,7 +28,7 @@ export default function FavoriteView() {
 
   const sliderControllerRef = useRef<SliderController>(null);
 
-  const [brightness, changeBrightness] = useBrightness();
+  const brightness = useStatelessBrightness([0, 100]);
   const [hasWriteSettingsPermission, requestPermission] = useBrightnessPermission();
 
   const { refresh } = useBrightnessCallback((newBrightness) => {
@@ -36,11 +36,6 @@ export default function FavoriteView() {
   });
 
   useNavigationEvent('focus', refresh);
-
-  const handleChangeBrightness = (value: number) => {
-    const normalizedValue = value / 100;
-    changeBrightness(normalizedValue);
-  };
 
   if (!favoriteExists) {
     return <Redirect href="/" />;
@@ -56,9 +51,9 @@ export default function FavoriteView() {
           {hasWriteSettingsPermission && brightness !== null ? (
             <Slider
               ref={sliderControllerRef}
-              initialValue={brightness * 100}
+              initialValue={brightness.get()}
               changeProgressivelyOnceAtMs={0}
-              onChange={handleChangeBrightness}
+              onChange={brightness.set}
             />
           ) : null}
         </View>

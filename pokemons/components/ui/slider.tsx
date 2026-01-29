@@ -1,10 +1,23 @@
 import { CancelDebounceFn, debounceFactory } from '@/utils/common-utils';
-import { RefObject, forwardRef, useCallback, useLayoutEffect, useMemo, useRef } from 'react';
+import {
+  RefObject,
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+} from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
+  Extrapolation,
+  clamp,
   interpolate,
+  measure,
   runOnJS,
+  runOnUI,
+  useAnimatedRef,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -14,6 +27,7 @@ export type SliderProps = {
   initialValue: number;
   onChange: (value: number) => void;
   changeProgressivelyOnceAtMs?: number;
+  progressivelyChangeEnabled?: boolean;
   onChangeDeps?: unknown[];
 };
 
@@ -22,11 +36,27 @@ export interface SliderController {
   getValue: () => number;
 }
 
+const SLIDER_HEIGHT = 42;
+const THUMB_MARK_SIZE = SLIDER_HEIGHT;
+const TRACK_MARK_HEIGHT = SLIDER_HEIGHT * 0.2;
+
+function normalizeValue(receivedValue: number, sliderWidth: number): number {
+  'worklet';
+  const value = interpolate(
+    receivedValue,
+    [0, sliderWidth - THUMB_MARK_SIZE],
+    [0, 100],
+    Extrapolation.CLAMP,
+  );
+  return Math.round(value);
+}
+
 export const Slider = forwardRef<SliderController, SliderProps>(function Slider(
   {
     onChange: _onChange,
     initialValue,
-    changeProgressivelyOnceAtMs: changeProgressivelyOnceAtMs,
+    changeProgressivelyOnceAtMs = 10,
+    progressivelyChangeEnabled = true,
     onChangeDeps = [],
   }: SliderProps,
   ref,
@@ -37,110 +67,60 @@ export const Slider = forwardRef<SliderController, SliderProps>(function Slider(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, onChangeDeps);
 
+  useImperativeHandle(ref, () => ({
+    setValue: (value: number) => sharedValue.set(clamp(Math.round(value), 0, 100)),
+    getValue: () => clamp(sharedValue.get(), 0, 100),
+  }));
+
   const sharedValue = useSharedValue(initialValue);
-  const sliderRef = useRef<View>(null);
-  const thumbMarkRef = useRef<View>(null);
-  const trackMarkRef = useRef<View>(null);
-  const cancelProgressivelyChangeValueRef = useRef<CancelDebounceFn>(null);
   const sliderWidth = useSharedValue(0);
-  const thumbMarkWidth = useSharedValue(0);
-  const trackMarkHeight = useSharedValue(0);
-  const shouldChangeValueProgressively = useSharedValue(changeProgressivelyOnceAtMs !== undefined);
+  const sliderRef = useAnimatedRef();
+  const cancelProgressivelyChangeValueRef = useRef<CancelDebounceFn>(null);
 
   const progressivelyChangeValue = useMemo(() => {
     cancelProgressivelyChangeValueRef.current?.();
-    // if (changeProgressivelyOnceAtMs === undefined || changeProgressivelyOnceAtMs < 1) {
-    //   return onChange;
-    // }
-    const [debouncedUpdate, cancelUpdate] = debounceFactory((value: number): void => {
-      onChange(value);
-    }, changeProgressivelyOnceAtMs ?? 0);
+
+    const [debouncedUpdate, cancelUpdate] = debounceFactory(onChange, changeProgressivelyOnceAtMs);
+
     cancelProgressivelyChangeValueRef.current = cancelUpdate;
+
     return debouncedUpdate;
   }, [onChange, changeProgressivelyOnceAtMs]);
 
-  const handleSlideEnd = useCallback(
-    (value: number): void => {
-      cancelProgressivelyChangeValueRef.current?.();
-      onChange(value);
-    },
-    [onChange],
-  );
-
-  const setNormalizedValue = useCallback(
-    (x: number): number => {
-      'worklet';
-      let value = interpolate(
-        x,
-        [thumbMarkWidth.get(), sliderWidth.get() - thumbMarkWidth.get()],
-        [0, 100],
-      );
-      if (value < 0) {
-        value = 0;
-      }
-      if (value > 100) {
-        value = 100;
-      }
-      value = Math.ceil(value);
-      sharedValue.set(value);
-      return value;
-    },
-    [sharedValue, sliderWidth, thumbMarkWidth],
-  );
+  const handleSlideEnd = (value: number): void => {
+    cancelProgressivelyChangeValueRef.current?.();
+    onChange(value);
+  };
 
   useLayoutEffect(() => {
-    if (ref) {
-      (ref as RefObject<SliderController>).current = {
-        setValue: (value: number) => {
-          if (value < 0) {
-            value = 0;
-          }
-          if (value > 100) {
-            value = 100;
-          }
-          sharedValue.set(value);
-        },
-        getValue: () => Math.ceil(sharedValue.get()),
-      };
-    }
-    sliderRef.current?.measure((_, __, width) => {
-      sliderWidth.set(width);
-    });
-    thumbMarkRef.current?.measure((_, __, width) => {
-      thumbMarkWidth.set(width);
-    });
-    trackMarkRef.current?.measure((_, __, width, height) => {
-      trackMarkHeight.set(height);
-    });
-  }, [
-    sliderRef,
-    sliderWidth,
-    thumbMarkRef,
-    thumbMarkWidth,
-    sharedValue,
-    ref,
-    trackMarkRef,
-    trackMarkHeight,
-  ]);
+    runOnUI(() => {
+      const dimensions = measure(sliderRef);
+      if (dimensions) {
+        sliderWidth.set(dimensions.width);
+      }
+    })();
+  }, [sliderRef, sliderWidth]);
 
   const panGesture = Gesture.Pan()
     .onUpdate((e) => {
       const previousValue = sharedValue.get();
-      const value = setNormalizedValue(e.x);
+      const value = normalizeValue(e.x, sliderWidth.get());
+      sharedValue.set(value);
       if (previousValue === value) {
         return;
       }
-      if (shouldChangeValueProgressively.get()) {
-        runOnJS(progressivelyChangeValue)(value);
+      if (progressivelyChangeEnabled) {
+        runOnJS(progressivelyChangeValue)(sharedValue.get());
       }
     })
-    .onEnd((e) => {
+    .onEnd((_e) => {
       runOnJS(handleSlideEnd)(sharedValue.get());
     });
 
   const pressGesture = Gesture.Tap()
     .onStart((e) => {
-      setNormalizedValue(e.x);
+      const value = normalizeValue(e.x, sliderWidth.get());
+      sharedValue.set(value);
     })
     .onEnd((e) => {
       runOnJS(onChange)(sharedValue.get());
@@ -150,7 +130,7 @@ export const Slider = forwardRef<SliderController, SliderProps>(function Slider(
     const interpolatedValue = interpolate(
       sharedValue.get(),
       [0, 100],
-      [0, sliderWidth.get() - thumbMarkWidth.get()],
+      [0, sliderWidth.get() - THUMB_MARK_SIZE],
     );
     return {
       transform: [
@@ -162,31 +142,24 @@ export const Slider = forwardRef<SliderController, SliderProps>(function Slider(
   });
 
   const sliderTrackAnimatedStyles = useAnimatedStyle(() => {
-    const interpolatedValue = interpolate(
-      sharedValue.get(),
-      [0, 100],
-      [thumbMarkWidth.get() / 2, sliderWidth.get() - thumbMarkWidth.get() / 2],
-    );
+    const minValue = THUMB_MARK_SIZE / 2;
+    const maxValue = sliderWidth.get() - minValue;
+    const interpolatedValue = interpolate(sharedValue.get(), [0, 100], [minValue, maxValue]);
     return {
       width: withSpring(interpolatedValue, { duration: 20 }),
     };
   });
 
-  const trackMarkAnimatedStyles = useAnimatedStyle(() => {
-    return {
-      transform: [{ translateY: thumbMarkWidth.get() / 2 - trackMarkHeight.get() / 2 }],
-    };
-  });
+  const trackMarkStyles = {
+    transform: [{ translateY: THUMB_MARK_SIZE / 2 - TRACK_MARK_HEIGHT / 2 }],
+  };
 
   return (
     <View style={styles.container}>
       <GestureDetector gesture={Gesture.Exclusive(panGesture, pressGesture)}>
         <Animated.View ref={sliderRef} style={[styles.slider]}>
-          <Animated.View ref={trackMarkRef} style={[styles.trackMark, trackMarkAnimatedStyles]} />
-          <Animated.View
-            ref={thumbMarkRef}
-            style={[styles.sliderThumb, sliderThumbAnimatedStyles]}
-          />
+          <Animated.View style={[styles.trackMark, trackMarkStyles]} />
+          <Animated.View style={[styles.sliderThumb, sliderThumbAnimatedStyles]} />
           <Animated.View style={[styles.sliderTrack, sliderTrackAnimatedStyles]} />
         </Animated.View>
       </GestureDetector>
@@ -215,12 +188,12 @@ const styles = StyleSheet.create({
   slider: {
     position: 'relative',
     width: '100%',
-    height: 42,
+    height: SLIDER_HEIGHT,
     backgroundColor: 'transparent',
   },
   trackMark: {
     width: '100%',
-    height: '20%',
+    height: TRACK_MARK_HEIGHT,
     backgroundColor: 'white',
     position: 'absolute',
     zIndex: 1,
@@ -232,8 +205,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
-    width: 42,
-    height: '100%',
+    width: THUMB_MARK_SIZE,
+    height: THUMB_MARK_SIZE,
     backgroundColor: '#007bff',
     borderRadius: 100,
     zIndex: 3,
