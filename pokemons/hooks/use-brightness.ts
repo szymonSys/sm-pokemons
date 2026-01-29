@@ -1,6 +1,13 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { isNotNullish, isNullish } from '@/utils/assertion-utils';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { Platform } from 'react-native';
 import { BrightnessEventSubscription, BrightnessModule } from 'react-native-brightness';
+import { Extrapolation, interpolate, useSharedValue } from 'react-native-reanimated';
+
+export type BrightnessController = {
+  get: () => number;
+  set: (brightness: number) => number;
+};
 
 export function useBrightness(): readonly [
   brightness: number | null,
@@ -18,6 +25,48 @@ export function useBrightness(): readonly [
     return newBrightness;
   }, []);
   return [brightness, changeBrightness] as const;
+}
+export function useSharedBrightness(): BrightnessController {
+  const brightness = useSharedValue<number>(BrightnessModule.getBrightness());
+  return useMemo<BrightnessController>(
+    () => ({
+      get() {
+        'worklet';
+        brightness.set(BrightnessModule.getBrightness());
+        return brightness.get();
+      },
+      set(newBrightness) {
+        'worklet';
+        brightness.set(BrightnessModule.setBrightness(newBrightness));
+        return brightness.get();
+      },
+    }),
+    [brightness],
+  );
+}
+
+export function useStatelessBrightness(
+  interpolateRange?: readonly [number, number],
+): BrightnessController {
+  const [from, to] = interpolateRange ?? [];
+  return useMemo<BrightnessController>(
+    () => ({
+      get() {
+        const brightnessValue = BrightnessModule.getBrightness();
+        if (isNullish(from) || isNullish(to)) {
+          return brightnessValue;
+        }
+        return interpolate(brightnessValue, [0, 1], [from, to], Extrapolation.CLAMP);
+      },
+      set(newBrightness) {
+        if (isNotNullish(from) && isNotNullish(to)) {
+          newBrightness = interpolate(newBrightness, [from, to], [0, 1], Extrapolation.CLAMP);
+        }
+        return BrightnessModule.setBrightness(newBrightness);
+      },
+    }),
+    [from, to],
+  );
 }
 
 export function useBrightnessPermission(): [
